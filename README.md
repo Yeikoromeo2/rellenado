@@ -32,12 +32,18 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
 **Acción 1: fecha y responsable**
 1. Pega los códigos (uno por línea). Se limpian solos los espacios, las líneas vacías y los duplicados.
 2. La fecha es la de hoy por defecto. Se escribe como fecha real de Excel con formato `mm/dd/yyyy`.
-3. Marca el responsable y pulsa **Ejecutar acción 1**. Se rellenan `FECHA CONTACTO` y `RESPONSABLE` en todas las filas con ese `Customer ID`.
+3. Marca el responsable y pulsa **Ejecutar acción 1**. Se rellenan `FECHA CONTACTO` y `RESPONSABLE` en las filas con ese `Customer ID`, **solo si la celda está vacía**.
 
 **Acción 2: cargar el archivo CRM**
 1. Elige el `.xlsx` exportado desde la herramienta de difusión. Su columna `Código de Cliente` se cruza con `Customer ID`.
-2. Revisa qué columnas se van a trasladar. Solo aparecen marcadas las que existen en la hoja con el mismo encabezado. `Razón Social` viene desmarcada por defecto.
-3. Pulsa **Rellenar información en Excel**. Las celdas vacías del archivo CRM **no borran** lo que ya hay en la hoja.
+2. Solo se trasladan estas 6 columnas: `ESTADO CONTACTO`, `PRÓXIMA ACCIÓN`, `OBSERVACIÓN`, `NOMBRE DEL CONTACTO`, `CORREO` y `TELÉFONO`.
+3. Pulsa **Rellenar información en Excel**. Solo se escriben las celdas que en la hoja están **vacías**.
+
+**Reglas de protección (las dos acciones)**
+- `Customer ID` solo se usa para buscar la fila. Nunca se escribe en ella.
+- `Razón Social` y `Número de Contacto` nunca se tocan.
+- Nunca se sobrescribe una celda que ya tenga datos.
+- Ninguna otra columna se modifica. Si algo intentara escribir fuera de estas reglas, la operación se cancela completa.
 
 **Deshacer:** el botón inferior restaura los valores anteriores de la última acción. Excel no permite deshacer con Ctrl+Z los cambios hechos por un complemento.
 

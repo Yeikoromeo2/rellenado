@@ -130,10 +130,7 @@
         <span class="lbl">Responsable</span>
         <div id="respChips" class="grid grid-cols-2 gap-1.5"></div>
       </div>
-      <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer select-none">
-        <input id="overwrite1" type="checkbox" class="w-4 h-4 accent-indigo-600" checked>
-        Sobrescribir si la celda ya tiene datos
-      </label>
+      <p class="text-[11.5px] text-slate-500">🛡️ Solo rellena celdas <b>vacías</b> de FECHA CONTACTO y RESPONSABLE. No sobrescribe ni toca otras columnas.</p>
     </div>
 
     <button id="btnRun1" class="btn btn-primary w-full !py-2.5">▶ Ejecutar acción 1</button>
@@ -159,7 +156,7 @@
         <button id="btnRefreshCols" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Revisar</button>
       </div>
       <div id="colsList" class="space-y-1 max-h-56 overflow-y-auto scroll-thin"></div>
-      <p class="text-[11px] text-slate-500 mt-2">🛡️ Las celdas vacías del archivo CRM no borran lo que ya existe en la hoja.</p>
+      <p class="text-[11px] text-slate-500 mt-2">🛡️ Solo se rellenan celdas <b>vacías</b> de estas 6 columnas. Customer ID, Razón Social y Número nunca se tocan, y nada se sobrescribe.</p>
     </div>
 
     <button id="btnRun2" class="btn btn-green w-full !py-2.5">⇢ Rellenar información en Excel</button>
@@ -179,6 +176,6 @@
 
 <div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
 
-<script src="app.js?v=1.0.0"></script>
+<script src="app.js?v=1.1.0"></script>
 </body>
 </html>

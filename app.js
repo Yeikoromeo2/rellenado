@@ -18,8 +18,11 @@ const DEFAULTS = {
 const ID_ALIASES = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente'];
 const HEADER_SCAN_ROWS = 10;
 const LS_KEY = 'rellenado_crm_v1';
-// Columnas del CRM que por defecto NO se trasladan (se pueden marcar en el panel)
-const DEFAULT_EXCLUDED = ['razonsocial'];
+// Acción 2: ÚNICAS columnas que se rellenan desde el archivo CRM
+const A2_COLUMNS = ['ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO'];
+// Columnas que JAMÁS se escriben (solo se usan para buscar o se dejan intactas)
+const PROTECTED_KEYS = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente', 'razonsocial', 'numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular'];
+const DEFAULT_EXCLUDED = [];
 
 /* ---------------- Utilidades ---------------- */
 const $ = (s) => document.querySelector(s);
@@ -265,8 +268,20 @@ const absCol = (idx, key) => idx.colOffset + idx.h.cols.get(key).col;
 const existingAt = (idx, key, absRow) => (idx.existing.get(key) || [])[absRow - idx.firstRow];
 const T = () => (APP.mode === 'office' ? OfficeTarget : LocalTarget);
 
-/** Aplica escrituras y prepara el "deshacer" */
-async function applyWrites(writes, label, progEl) {
+/** Columnas en las que cada acción tiene permiso de escribir */
+function allowedKeys(action) {
+  const keys = action === 1 ? [P.dateCol, P.respCol] : A2_COLUMNS;
+  const blocked = new Set([...PROTECTED_KEYS, ...idAliases(P.idTarget), ...idAliases(P.idCrm)]);
+  return new Set(keys.map(normKey).filter((k) => !blocked.has(k)));
+}
+/** Aplica escrituras y prepara el "deshacer".
+ *  Candado final: solo columnas permitidas y solo celdas que estaban vacías. */
+async function applyWrites(writes, label, progEl, action) {
+  const allowed = allowedKeys(action);
+  for (const w of writes) {
+    if (!allowed.has(w.key)) throw new Error(`Bloqueado: la columna "${w.key}" no está permitida. No se escribió nada.`);
+    if (!isEmpty(w.old)) throw new Error('Bloqueado: se intentó escribir sobre una celda con datos. No se escribió nada.');
+  }
   const undoWrites = writes.map((w) => ({
     row: w.row, col: w.col, restore: true,
     value: APP.mode === 'office' ? (isEmpty(w.old) ? '' : w.old) : LocalTarget.snapshot(w.row, w.col),
@@ -314,19 +329,20 @@ async function runAction1() {
   if (!list.length) return toast('Pega al menos un código de cliente.', 'warn');
   if (!date) return toast('Elige una fecha.', 'warn');
   if (!P.resp) return toast('Marca un responsable.', 'warn');
-  const overwrite = $('#overwrite1').checked;
   const kDate = normKey(P.dateCol), kResp = normKey(P.respCol);
 
   await busy('#btnRun1', async () => {
     const prog = $('#prog1');
     setProgress(prog, 0.05, 'Leyendo la hoja…');
     const idx = await T().buildIndex([kDate, kResp]);
+    const allowed = allowedKeys(1);
+    if (!allowed.has(kDate) || !allowed.has(kResp)) throw new Error('La columna de fecha o de responsable apunta a una columna protegida. Revisa ⚙ Configuración.');
     const missing = [[kDate, P.dateCol], [kResp, P.respCol]].filter(([k]) => !idx.h.cols.has(k)).map(([, n]) => n);
     if (missing.length) throw new Error(`Faltan columnas en "${P.sheet}": ${missing.join(', ')}.`);
 
     const serial = excelSerial(date);
     const writes = [], notFound = [];
-    let rowsFilled = 0, codesFound = 0, protectedCells = 0, unchanged = 0;
+    let rowsFilled = 0, codesFound = 0, protectedCells = 0;
     for (const { key, raw } of list) {
       const rows = idx.rows.get(key);
       if (!rows) { notFound.push(raw); continue; }
@@ -335,15 +351,14 @@ async function runAction1() {
         let touched = false;
         for (const [k, value, fmt] of [[kDate, serial, P.dateFmt], [kResp, P.resp, null]]) {
           const old = existingAt(idx, k, row);
-          if (sameValue(old, value)) { unchanged++; touched = true; continue; }
-          if (!overwrite && !isEmpty(old)) { protectedCells++; continue; }
-          writes.push({ row, col: absCol(idx, k), value, fmt, old });
+          if (!isEmpty(old)) { protectedCells++; continue; } // nunca se sobrescribe
+          writes.push({ row, col: absCol(idx, k), key: k, value, fmt, old });
           touched = true;
         }
         if (touched) rowsFilled++;
       }
     }
-    if (writes.length) await applyWrites(writes, `Acción 1 (${writes.length} celdas)`, prog);
+    if (writes.length) await applyWrites(writes, `Acción 1 (${writes.length} celdas)`, prog, 1);
     setProgress(prog, 1, 'Listo');
     renderResult('#result1', {
       ok: [
@@ -352,8 +367,7 @@ async function runAction1() {
         ['Celdas escritas', writes.length],
       ],
       notes: [
-        unchanged ? `${unchanged} celda(s) ya tenían el mismo valor.` : '',
-        protectedCells ? `${protectedCells} celda(s) con datos se conservaron (sobrescritura desactivada).` : '',
+        protectedCells ? `${protectedCells} celda(s) ya tenían datos y se dejaron intactas.` : '',
       ],
       notFound,
     });
@@ -398,10 +412,10 @@ function readCrmFile(file) {
 }
 function crmColumns() {
   if (!APP.crm) return [];
-  const ids = new Set(idAliases(P.idCrm).concat(idAliases(P.idTarget)));
+  const allowed = allowedKeys(2);
   const seen = new Set();
   return APP.crm.headers.map((name, i) => ({ name, i, key: normKey(name) }))
-    .filter((c) => c.key && !ids.has(c.key) && !seen.has(c.key) && seen.add(c.key));
+    .filter((c) => allowed.has(c.key) && !seen.has(c.key) && seen.add(c.key));
 }
 async function refreshColumnMatch() {
   if (!APP.crm) return;
@@ -425,7 +439,7 @@ async function refreshColumnMatch() {
 async function runAction2() {
   if (!APP.crm) return toast('Primero elige el archivo CRM.', 'warn');
   const cols = crmColumns().filter((c) => !P.excluded.includes(c.key));
-  if (!cols.length) return toast('No hay columnas seleccionadas para trasladar.', 'warn');
+  if (!cols.length) return toast('El archivo CRM no trae ninguna de las 6 columnas a rellenar.', 'warn');
 
   await busy('#btnRun2', async () => {
     const prog = $('#prog2');
@@ -448,7 +462,7 @@ async function runAction2() {
     }
     setProgress(prog, 0.3, 'Cruzando códigos…');
     const writes = [], notFound = [];
-    let updated = 0, unchangedCodes = 0, emptyCodes = 0;
+    let updated = 0, unchangedCodes = 0, emptyCodes = 0, protectedCells = 0;
     for (const key of order) {
       const m = merged.get(key);
       const rows = idx.rows.get(key);
@@ -459,14 +473,14 @@ async function runAction2() {
       for (const row of rows) {
         for (const [k, value] of entries) {
           const old = existingAt(idx, k, row);
-          if (sameValue(old, value)) continue;
-          writes.push({ row, col: absCol(idx, k), value, old });
+          if (!isEmpty(old)) { protectedCells++; continue; } // nunca se sobrescribe
+          writes.push({ row, col: absCol(idx, k), key: k, value, old });
           any = true;
         }
       }
       if (any) updated++; else unchangedCodes++;
     }
-    if (writes.length) await applyWrites(writes, `Acción 2 (${writes.length} celdas)`, prog);
+    if (writes.length) await applyWrites(writes, `Acción 2 (${writes.length} celdas)`, prog, 2);
     setProgress(prog, 1, 'Listo');
     renderResult('#result2', {
       ok: [
@@ -475,7 +489,8 @@ async function runAction2() {
         ['Columnas cruzadas', usable.length],
       ],
       notes: [
-        unchangedCodes ? `${unchangedCodes} registro(s) ya estaban al día.` : '',
+        unchangedCodes ? `${unchangedCodes} registro(s) sin celdas vacías por rellenar.` : '',
+        protectedCells ? `${protectedCells} celda(s) ya tenían datos y se dejaron intactas.` : '',
         emptyCodes ? `${emptyCodes} registro(s) sin datos nuevos (celdas vacías, se conservó lo existente).` : '',
       ],
       notFound,
