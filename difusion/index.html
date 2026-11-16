@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Difusión WhatsApp CRM</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } }
+  };
+</script>
+<style>
+  body { background: #F8FAFC; }
+  .card { background: #fff; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  .chip { font-size: 11px; line-height: 1; padding: 6px 9px; border-radius: 999px; border: 1px solid #E2E8F0; background: #fff; color: #475569; white-space: nowrap; transition: all .12s ease; cursor: pointer; }
+  .chip:hover { border-color: #A5B4FC; color: #3730A3; background: #EEF2FF; }
+  .chip.on { color: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .inp { width: 100%; font-size: 12.5px; padding: 6px 9px; border: 1px solid #E2E8F0; border-radius: 8px; background: #fff; outline: none; transition: border-color .12s, box-shadow .12s; }
+  .inp:focus { border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+  .inp.bad { border-color: #F43F5E; background: #FFF1F2; }
+  .inp.good { border-color: #10B981; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; transition: all .12s; white-space: nowrap; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: #4F46E5; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #4338CA; }
+  .btn-ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; }
+  .btn-ghost:hover:not(:disabled) { background: #F1F5F9; }
+  .btn-green { background: #059669; color: #fff; }
+  .btn-green:hover:not(:disabled) { background: #047857; }
+  .btn-amber { background: #F59E0B; color: #fff; }
+  .btn-amber:hover:not(:disabled) { background: #D97706; }
+  .row-sent { background: #ECFDF5; border-color: #A7F3D0 !important; }
+  .tab-btn { padding: 8px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #64748B; }
+  .tab-btn.active { background: #EEF2FF; color: #4338CA; }
+  .lt-err { background: rgba(244,63,94,.18); border-bottom: 2px solid #F43F5E; border-radius: 2px; }
+  .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scroll-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+  .wa-bubble { background: #DCF8C6; border-radius: 10px 10px 2px 10px; }
+  .wa-bg { background-color: #EFEAE2; background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size: 14px 14px; }
+  @keyframes pulseSave { 0%{transform:scale(1)} 50%{transform:scale(1.6)} 100%{transform:scale(1)} }
+  .pulse-save { animation: pulseSave .45s ease; }
+  .toast-enter { animation: tIn .2s ease; }
+  @keyframes tIn { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none; } }
+</style>
+</head>
+<body class="font-sans text-slate-800 antialiased">
+
+<!-- ============ HEADER ============ -->
+<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
+  <div class="max-w-[1440px] mx-auto px-4 h-14 flex items-center gap-3">
+    <div class="flex items-center gap-2 shrink-0">
+      <div class="w-8 h-8 rounded-lg bg-emerald-500 grid place-items-center text-white">
+        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.6-.4.8-.4h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>
+      </div>
+      <div class="leading-tight hidden sm:block">
+        <div class="text-[14px] font-bold">Difusión CRM</div>
+        <div class="text-[11px] text-slate-500">WhatsApp Web · Seguimiento diario</div>
+      </div>
+    </div>
+    <nav class="flex items-center gap-1 ml-2 sm:ml-6">
+      <button class="tab-btn" data-tab="campana">1 · Campaña y envío</button>
+      <button class="tab-btn" data-tab="crm">2 · Gestión CRM</button>
+    </nav>
+    <div class="ml-auto flex items-center gap-3">
+      <div id="runPill" class="hidden md:flex items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">
+        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span><span id="runPillTxt">00:00</span>
+      </div>
+      <div id="saveInd" class="flex items-center gap-1.5 text-[12px] text-slate-500" title="Todo se guarda en este navegador (localStorage)">
+        <span id="saveDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span id="saveTxt" class="hidden sm:inline">Guardado automáticamente</span>
+      </div>
+      <div class="relative">
+        <button id="backupBtn" class="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100" title="Respaldo / restauración">
+          <svg viewBox="0 0 24 24" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
+        </button>
+        <div id="backupMenu" class="hidden absolute right-0 mt-2 w-64 card p-1.5 text-[13px] shadow-lg">
+          <button id="bkExport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬇️ Descargar respaldo (.json)</button>
+          <button id="bkImport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬆️ Restaurar desde respaldo</button>
+          <div class="border-t border-slate-100 my-1"></div>
+          <button id="bkWipe" class="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-50 text-rose-600">🗑️ Borrar todos los datos</button>
+          <input id="bkFile" type="file" accept=".json,application/json" class="hidden">
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-[1440px] mx-auto px-4 py-5">
+
+  <!-- ============ STATS ============ -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Base total</div><div id="stTotal" class="text-2xl font-bold mt-0.5">0</div><div id="stTotalSub" class="text-[11px] text-slate-400"></div></div>
+    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Ya gestionados</div><div id="stAssigned" class="text-2xl font-bold mt-0.5 text-indigo-600">0</div><div id="stAssignedSub" class="text-[11px] text-slate-400">asignados a lotes</div></div>
+    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Disponibles por contactar</div><div id="stAvail" class="text-2xl font-bold mt-0.5 text-slate-800">0</div><div id="stAvailSub" class="text-[11px] text-slate-400"></div></div>
+    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Mensajes enviados</div><div id="stSent" class="text-2xl font-bold mt-0.5 text-emerald-600">0</div><div id="stSentSub" class="text-[11px] text-slate-400"></div></div>
+  </section>
+
+  <!-- ============ TAB 1 ============ -->
+  <section id="tab-campana" class="hidden">
+    <div class="grid lg:grid-cols-12 gap-5">
+
+      <!-- Left column -->
+      <div class="lg:col-span-4 space-y-5">
+        <div class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-[15px]">Base de clientes</h2>
+            <span class="text-[11px] text-slate-400">.xlsx / .xls</span>
+          </div>
+          <label id="dropZone" class="block border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition">
+            <input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
+            <div class="text-3xl mb-1">📄</div>
+            <div class="text-[13px] font-semibold text-slate-700">Arrastra o haz clic para cargar Excel</div>
+            <div class="text-[11px] text-slate-500 mt-1">Columnas: Código de Cliente · Razón Social · Número de Contacto</div>
+          </label>
+          <div id="importResult" class="hidden mt-3 text-[12px] rounded-lg p-3"></div>
+        </div>
+
+        <div class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-bold text-[15px]">Lotes diarios</h2>
+            <span id="loteCount" class="text-[11px] text-slate-400"></span>
+          </div>
+          <button id="genLote" class="btn btn-primary w-full">🎲 Generar nuevo lote de 30 al azar</button>
+          <p class="text-[11px] text-slate-500 mt-2">Toma solo contactos nunca asignados. Los lotes anteriores se conservan.</p>
+          <div id="loteList" class="mt-3 space-y-2 max-h-[340px] overflow-y-auto scroll-thin pr-1"></div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="lg:col-span-8 space-y-5">
+        <!-- Message composer -->
+        <div class="card p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-3">
+            <h2 class="font-bold text-[15px] mr-auto">Mensaje de difusión</h2>
+            <button class="btn btn-ghost !py-1.5 !px-2.5 !text-[12px]" data-var="{codigo_cliente}">＋ {codigo_cliente}</button>
+            <button class="btn btn-ghost !py-1.5 !px-2.5 !text-[12px]" data-var="{razon_social}">＋ {razon_social}</button>
+          </div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <div class="relative">
+                <div id="msgHighlight" aria-hidden="true" class="absolute inset-0 px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words text-transparent pointer-events-none overflow-hidden rounded-xl border border-transparent"></div>
+                <textarea id="msg" spellcheck="true" lang="es" rows="9" class="relative w-full bg-transparent px-3 py-2.5 text-[13.5px] leading-relaxed border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y" placeholder="Escribe tu mensaje…"></textarea>
+              </div>
+              <div class="flex items-center gap-2 mt-2">
+                <button id="ltCheck" class="btn btn-ghost !text-[12.5px]">✔️ Revisar ortografía y redacción</button>
+                <span id="charCount" class="ml-auto text-[11px] text-slate-400"></span>
+              </div>
+              <div id="ltPanel" class="hidden mt-3 border border-slate-200 rounded-xl overflow-hidden">
+                <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+                  <span id="ltTitle" class="text-[12px] font-semibold"></span>
+                  <div class="flex gap-1">
+                    <button id="ltApplyAll" class="text-[11px] font-semibold text-indigo-600 hover:underline px-1">Aplicar todas</button>
+                    <button id="ltClose" class="text-[11px] text-slate-500 hover:underline px-1">Cerrar</button>
+                  </div>
+                </div>
+                <div id="ltList" class="max-h-56 overflow-y-auto scroll-thin divide-y divide-slate-100"></div>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Vista previa <span id="previewWho" class="normal-case font-normal text-slate-400"></span></div>
+              <div class="wa-bg rounded-xl p-3 min-h-[214px] border border-slate-200">
+                <div class="wa-bubble ml-auto max-w-[92%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-sm"><span id="preview"></span><div class="text-right text-[10px] text-slate-500 mt-1">ahora ✓✓</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scheduler -->
+        <div class="card p-4">
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <h2 class="font-bold text-[15px] mr-auto">Envío programado anti‑spam</h2>
+            <label class="text-[12px] text-slate-500">Lote a enviar</label>
+            <select id="sendLote" class="inp !w-auto !py-1.5"></select>
+          </div>
+
+          <!-- Destino: app de escritorio o web -->
+          <div class="mb-4 rounded-xl border border-slate-200 p-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="text-[12px] font-semibold text-slate-600 mr-1">Abrir en:</span>
+              <div id="destSel" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12.5px] font-semibold">
+                <button data-dest="app" class="px-3 py-1.5">💻 WhatsApp de la PC</button>
+                <button data-dest="web" class="px-3 py-1.5 border-l border-slate-200">🌐 WhatsApp Web</button>
+              </div>
+              <button id="btnTestApp" class="btn btn-ghost !py-1.5 !text-[12px] ml-auto">🔓 Activar apertura directa (1 sola vez)</button>
+            </div>
+            <p id="destHelp" class="text-[11.5px] text-slate-500 mt-2 leading-relaxed"></p>
+          </div>
+
+          <div id="blockedBanner" class="hidden mb-4 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-[13px] flex flex-wrap items-center gap-3">
+            <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat en WhatsApp con el mensaje listo.</span>
+            <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
+          </div>
+
+          <div class="grid md:grid-cols-12 gap-4 items-stretch">
+            <div class="md:col-span-5 rounded-xl bg-slate-50 border border-slate-200 p-4 flex flex-col items-center justify-center">
+              <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Próximo envío en</div>
+              <div id="countdown" class="text-5xl font-bold tabular-nums tracking-tight my-1 text-slate-800">05:00</div>
+              <div id="runState" class="text-[12px] font-semibold text-slate-500">Detenido</div>
+              <div class="w-full mt-3">
+                <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>Progreso del lote</span><span id="progTxt">0/0</span></div>
+                <div class="h-2 bg-slate-200 rounded-full overflow-hidden"><div id="progBar" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
+              </div>
+            </div>
+            <div class="md:col-span-7 flex flex-col gap-3">
+              <div class="flex flex-wrap items-end gap-3">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-500 mb-1">Intervalo (minutos)</label>
+                  <input id="interval" type="number" min="0.5" step="0.5" class="inp !w-28 !text-[14px] font-semibold">
+                </div>
+                <label class="flex items-center gap-2 text-[12.5px] text-slate-600 pb-1.5 cursor-pointer select-none">
+                  <input id="jitter" type="checkbox" class="w-4 h-4 accent-indigo-600"> Variación aleatoria ±20 s
+                </label>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="btnStart" class="btn btn-primary">▶ Comenzar</button>
+                <button id="btnPause" class="btn btn-ghost">⏸ Pausar</button>
+                <button id="btnReset" class="btn btn-ghost">↺ Reiniciar</button>
+                <button id="btnNow" class="btn btn-ghost" title="Enviar el siguiente contacto sin esperar">⚡ Enviar siguiente ahora</button>
+              </div>
+              <div id="nextBox" class="rounded-xl border border-slate-200 p-3 text-[12.5px]"></div>
+              <p id="runHelp" class="text-[11px] text-slate-500 leading-relaxed"></p>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Cola del lote</div>
+            <div id="queue" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto scroll-thin pr-1"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 ============ -->
+  <section id="tab-crm" class="hidden">
+    <div class="card p-3 mb-4 flex flex-wrap items-center gap-2">
+      <select id="viewSel" class="inp !w-auto !py-2 font-semibold"></select>
+      <div class="relative flex-1 min-w-[200px]">
+        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔎</span>
+        <input id="search" type="search" placeholder="Buscar por código, razón social o teléfono…" class="inp !py-2 !pl-8">
+      </div>
+      <div class="flex rounded-lg border border-slate-200 overflow-hidden text-[12px] font-semibold" id="sentFilter">
+        <button data-f="all" class="px-3 py-2">Todos</button>
+        <button data-f="sent" class="px-3 py-2 border-l border-slate-200">Enviados</button>
+        <button data-f="pending" class="px-3 py-2 border-l border-slate-200">Pendientes</button>
+      </div>
+      <div class="flex flex-wrap gap-2 ml-auto">
+        <button id="dlVcf" class="btn btn-ghost !text-[12.5px]">👤 Descargar contactos (.vcf)</button>
+        <div class="relative">
+          <button id="dlXlsBtn" class="btn btn-green !text-[12.5px]">⬇ Descargar Excel (.xlsx) ▾</button>
+          <div id="dlXlsMenu" class="hidden absolute right-0 mt-2 w-60 card p-1.5 text-[13px] shadow-lg z-20">
+            <button id="dlXlsView" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Lote / vista actual</button>
+            <button id="dlXlsAll" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Historial completo acumulado</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between mb-2 px-1">
+      <div id="crmSummary" class="text-[12px] text-slate-500"></div>
+    </div>
+
+    <div class="hidden xl:grid grid-cols-[minmax(240px,1.05fr)_minmax(380px,1.7fr)_minmax(300px,1.25fr)] gap-4 px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+      <div>Cliente</div><div>Estado contacto · Próxima acción</div><div>Datos de contacto · Observación</div>
+    </div>
+    <div id="crmList" class="space-y-2"></div>
+    <div id="crmMore" class="hidden text-center mt-4"><button class="btn btn-ghost" id="crmMoreBtn">Mostrar más</button></div>
+    <div id="crmEmpty" class="hidden card p-10 text-center text-slate-500 text-[14px]"></div>
+  </section>
+</main>
+
+<div id="toasts" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 items-end"></div>
+
+<script>
+/* =========================================================
+   CONSTANTES
+   ========================================================= */
+const LS_KEY = 'difusion_crm_v1';
+const LOTE_SIZE = 30;
+const WA_WINDOW = 'whatsapp_crm';
+const ESTADOS = [
+  { v: 'Cliente potencial – carterizar', c: '#7C3AED' },
+  { v: 'Cotizado – seguimiento', c: '#2563EB' },
+  { v: 'Interesado – sin cotización', c: '#0891B2' },
+  { v: 'No responde – 1.er intento', c: '#64748B' },
+  { v: 'Primera compra efectuada', c: '#059669' },
+];
+const ACCIONES = ['Activar recurrencia', 'Carterizar', 'Cerrar gestión', 'Contactar', 'Cotizar', 'Recontactar', 'Seguimiento cierre'];
+const DEFAULT_MSG = 'Hola, estimados de {razon_social} 👋\n\nLes saluda su asesor comercial. Queremos compartirles nuestras promociones vigentes de esta semana y conocer sus necesidades de compra.\n\n¿Les puedo enviar una cotización personalizada? (Código de cliente: {codigo_cliente})\n\n¡Quedo atento!';
+const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO'];
+
+/* =========================================================
+   ESTADO + PERSISTENCIA
+   ========================================================= */
+function defaultState() {
+  return {
+    version: 1,
+    clients: {},        // codigo -> {codigo, razon, telefono, addedAt}
+    clientOrder: [],    // orden de importación
+    lotes: [],          // {id, num, fecha(yyyy-mm-dd), createdAt, codigos[]}
+    gestion: {},        // codigo -> {loteId, enviado, fechaEnvio, msg, estado, accion, obs, nombre, correo, tel}
+    mensaje: DEFAULT_MSG,
+    settings: { intervalo: 5, variacion: true, destino: 'app' },
+    ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all' },
+  };
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return defaultState();
+    const d = JSON.parse(raw), base = defaultState();
+    return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) } };
+  } catch (e) { console.error(e); return defaultState(); }
+}
+let S = loadState();
+let saveTimer = null;
+function save(immediate) {
+  clearTimeout(saveTimer);
+  const doIt = () => {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(S));
+      setSaveIndicator(true);
+    } catch (e) {
+      console.error(e);
+      setSaveIndicator(false);
+      toast('No se pudo guardar (almacenamiento lleno). Descarga un respaldo.', 'error');
+    }
+  };
+  if (immediate) doIt(); else saveTimer = setTimeout(doIt, 150);
+}
+function setSaveIndicator(ok) {
+  const dot = $('#saveDot'), txt = $('#saveTxt');
+  dot.className = 'w-2 h-2 rounded-full ' + (ok ? 'bg-emerald-500' : 'bg-rose-500');
+  dot.classList.remove('pulse-save'); void dot.offsetWidth; dot.classList.add('pulse-save');
+  txt.textContent = ok ? 'Guardado automáticamente · ' + new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Error al guardar';
+  txt.className = 'hidden sm:inline ' + (ok ? '' : 'text-rose-600 font-semibold');
+}
+window.addEventListener('beforeunload', () => { clearTimeout(saveTimer); try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} });
+
+/* =========================================================
+   UTILIDADES
+   ========================================================= */
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+function todayKey(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function fmtDateKey(k) { const [y, m, d] = k.split('-'); return `${d}/${m}/${y}`; }
+function fmtDateTime(ts) { if (!ts) return ''; const d = new Date(ts); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function normKey(h) { return String(h ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function normalizePhone(v) {
+  let d = String(v ?? '').trim();
+  if (/e\+/i.test(d) && !isNaN(Number(d))) d = Number(d).toFixed(0);
+  d = d.replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 9 && d[0] === '9') d = '51' + d;
+  return d;
+}
+const validPhone = p => /^\d{9,15}$/.test(p || '');
+const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
+function fmtPhone(p) { return p && p.length === 11 && p.startsWith('51') ? `+51 ${p.slice(2, 5)} ${p.slice(5, 8)} ${p.slice(8)}` : (p ? '+' + p : '—'); }
+function loteById(id) { return S.lotes.find(l => l.id === id); }
+function loteLabel(l) { return l ? `Lote #${l.num} - ${fmtDateKey(l.fecha)}` : ''; }
+function personalize(tpl, c) { return tpl.replace(/\{codigo_cliente\}/g, c.codigo).replace(/\{razon_social\}/g, c.razon); }
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function download(name, content, mime) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+    try {
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (e2) { return false; }
+  }
+}
+function toast(msg, type = 'ok', ms = 2200) {
+  const colors = { ok: 'bg-slate-900 text-white', success: 'bg-emerald-600 text-white', error: 'bg-rose-600 text-white', warn: 'bg-amber-500 text-white' };
+  const el = document.createElement('div');
+  el.className = `toast-enter px-3.5 py-2 rounded-lg text-[13px] font-medium shadow-lg max-w-sm ${colors[type] || colors.ok}`;
+  el.textContent = msg; $('#toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .25s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 260); }, ms);
+}
+
+/* =========================================================
+   VENTANA ÚNICA DE WHATSAPP
+   ========================================================= */
+let waWin = null;
+const isApp = () => S.settings.destino !== 'web';
+// Lanza el protocolo whatsapp:// (abre la app instalada en la PC) sin cambiar de página
+function triggerProtocol(url) {
+  const a = document.createElement('a'); a.href = url; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+// Lanzamiento automático (sin clic): confirma que la app tomó el foco; si no, devuelve false
+function launchAppAuto(url) {
+  return new Promise((resolve) => {
+    if (!document.hasFocus()) { triggerProtocol(url); resolve(true); return; } // la PC ya está en otra ventana: no se puede verificar
+    let done = false;
+    const finish = (ok) => { if (done) return; done = true; window.removeEventListener('blur', onBlur); document.removeEventListener('visibilitychange', onBlur); resolve(ok); };
+    const onBlur = () => finish(true);
+    window.addEventListener('blur', onBlur); document.addEventListener('visibilitychange', onBlur);
+    triggerProtocol(url);
+    setTimeout(() => finish(false), 2500);
+  });
+}
+/** Abre el chat. gesture=true cuando viene de un clic del usuario. */
+async function openWA(url, gesture = false) {
+  if (isApp()) {
+    if (gesture) { triggerProtocol(url); return true; }
+    return launchAppAuto(url);
+  }
+  try {
+    if (waWin && !waWin.closed) { waWin.location.href = url; try { waWin.focus(); } catch (e) {} return true; }
+  } catch (e) { /* referencia perdida */ }
+  const w = window.open(url, WA_WINDOW);
+  if (w) { waWin = w; return true; }
+  return false;
+}
+const waSendUrl = (phone, text) => (isApp() ? `whatsapp://send?phone=${phone}` : `https://web.whatsapp.com/send?phone=${phone}`) + (text != null ? `&text=${encodeURIComponent(text)}` : '');
+
+/* =========================================================
+   ESTADÍSTICAS
+   ========================================================= */
+function stats() {
+  const total = S.clientOrder.length;
+  const assigned = Object.keys(S.gestion).length;
+  let avail = 0, noPhone = 0;
+  for (const c of S.clientOrder) {
+    if (S.gestion[c]) continue;
+    if (validPhone(S.clients[c].telefono)) avail++; else noPhone++;
+  }
+  const sent = Object.values(S.gestion).filter(g => g.enviado).length;
+  const sentToday = Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio && todayKey(new Date(g.fechaEnvio)) === todayKey()).length;
+  return { total, assigned, avail, noPhone, sent, sentToday };
+}
+function renderStats() {
+  const s = stats();
+  $('#stTotal').textContent = s.total.toLocaleString('es-PE');
+  $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
+  $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
+  $('#stAvailSub').textContent = s.noPhone ? `${s.noPhone} sin número válido` : (s.avail ? `≈ ${Math.ceil(s.avail / LOTE_SIZE)} lotes restantes` : 'sin pendientes');
+  $('#stTotalSub').textContent = `${S.lotes.length} lote(s) generados`;
+  $('#stSent').textContent = s.sent.toLocaleString('es-PE');
+  $('#stSentSub').textContent = `${s.sentToday} hoy`;
+}
+
+/* =========================================================
+   IMPORTAR EXCEL
+   ========================================================= */
+function pickCol(keys, tests) {
+  for (const t of tests) { const i = keys.findIndex(t); if (i >= 0) return i; }
+  return -1;
+}
+function importWorkbook(wb) {
+  let res = null;
+  for (const name of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true, blankrows: false });
+    for (let h = 0; h < Math.min(rows.length, 15); h++) {
+      const keys = rows[h].map(normKey);
+      const iCod = pickCol(keys, [k => k === 'codigodecliente', k => k.startsWith('codigo') && k.includes('cliente'), k => k.startsWith('codigo') || k.startsWith('cod')]);
+      const iRaz = pickCol(keys, [k => k === 'razonsocial', k => k.includes('razon'), k => k.includes('cliente') && k !== keys[iCod]]);
+      const iTel = pickCol(keys, [k => k === 'numerodecontacto', k => k.includes('numero') && k.includes('contacto'), k => k.includes('telefono') || k.includes('celular') || k.includes('movil') || k.includes('whatsapp'), k => k.includes('numero') || k.includes('contacto')]);
+      if (iCod >= 0 && iRaz >= 0 && iTel >= 0) { res = { rows, h, iCod, iRaz, iTel }; break; }
+    }
+    if (res) break;
+  }
+  if (!res) throw new Error('No se encontraron las columnas "Código de Cliente", "Razón Social" y "Número de Contacto".');
+  let added = 0, dup = 0, empty = 0, noPhone = 0;
+  const now = Date.now();
+  for (let r = res.h + 1; r < res.rows.length; r++) {
+    const row = res.rows[r];
+    const codigo = String(row[res.iCod] ?? '').trim();
+    if (!codigo) { empty++; continue; }
+    if (S.clients[codigo]) { dup++; continue; }
+    const telefono = normalizePhone(row[res.iTel]);
+    if (!validPhone(telefono)) noPhone++;
+    S.clients[codigo] = { codigo, razon: String(row[res.iRaz] ?? '').trim().replace(/\s+/g, ' '), telefono, addedAt: now };
+    S.clientOrder.push(codigo);
+    added++;
+  }
+  return { added, dup, empty, noPhone };
+}
+function handleExcelFile(file) {
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { toast('No se pudo cargar la librería de Excel (revisa tu conexión).', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      const r = importWorkbook(wb);
+      save(true); renderAll();
+      const box = $('#importResult');
+      box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-emerald-50 text-emerald-800 border border-emerald-200';
+      box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos agregados · ↩️ ${r.dup} duplicados omitidos` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '');
+      toast(`${r.added} clientes nuevos importados`, 'success');
+    } catch (err) {
+      const box = $('#importResult');
+      box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-rose-50 text-rose-700 border border-rose-200';
+      box.textContent = '❌ ' + err.message;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* =========================================================
+   LOTES
+   ========================================================= */
+function generateLote() {
+  const pool = S.clientOrder.filter(c => !S.gestion[c] && validPhone(S.clients[c].telefono));
+  if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
+  const today = todayKey();
+  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + l.codigos.filter(c => !S.gestion[c]?.enviado).length, 0);
+  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes de envío en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
+  const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
+  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos };
+  S.lotes.push(lote);
+  for (const c of codigos) S.gestion[c] = { loteId: lote.id, enviado: false, fechaEnvio: null, msg: '', estado: '', accion: '', obs: '', nombre: '', correo: '', tel: '' };
+  S.ui.sendLoteId = lote.id;
+  S.ui.view = 'lote:' + lote.id;
+  resetRunner();
+  save(true); renderAll();
+  toast(`${loteLabel(lote)} generado con ${codigos.length} contactos`, 'success');
+}
+function lotePending(l) { return l ? l.codigos.filter(c => !S.gestion[c]?.enviado) : []; }
+function loteSent(l) { return l ? l.codigos.filter(c => S.gestion[c]?.enviado).length : 0; }
+function getSendLote() {
+  let l = loteById(S.ui.sendLoteId);
+  if (!l && S.lotes.length) { l = S.lotes[S.lotes.length - 1]; S.ui.sendLoteId = l.id; }
+  return l;
+}
+function renderLotes() {
+  const list = $('#loteList');
+  $('#loteCount').textContent = S.lotes.length ? `${S.lotes.length} en total` : '';
+  if (!S.lotes.length) { list.innerHTML = '<div class="text-[12px] text-slate-400 text-center py-4">Aún no hay lotes generados.</div>'; }
+  else {
+    const cur = S.ui.sendLoteId;
+    list.innerHTML = S.lotes.slice().reverse().map(l => {
+      const sent = loteSent(l), tot = l.codigos.length, pct = Math.round(sent / tot * 100);
+      const isToday = l.fecha === todayKey();
+      return `<button data-lote="${l.id}" class="w-full text-left rounded-xl border px-3 py-2.5 transition ${l.id === cur ? 'border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-500/10' : 'border-slate-200 hover:bg-slate-50'}">
+        <div class="flex items-center justify-between text-[13px]"><span class="font-semibold">${esc(loteLabel(l))}</span>
+        ${isToday ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">HOY</span>' : ''}</div>
+        <div class="flex items-center gap-2 mt-1.5"><div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${sent === tot ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
+        <span class="text-[11px] text-slate-500 tabular-nums">${sent}/${tot}</span></div></button>`;
+    }).join('');
+  }
+  const sel = $('#sendLote');
+  sel.innerHTML = S.lotes.length ? S.lotes.slice().reverse().map(l => `<option value="${l.id}">${esc(loteLabel(l))} (${loteSent(l)}/${l.codigos.length})</option>`).join('') : '<option value="">Sin lotes</option>';
+  const l = getSendLote(); if (l) sel.value = l.id;
+}
+
+/* =========================================================
+   MENSAJE + VISTA PREVIA
+   ========================================================= */
+function previewClient() {
+  const l = getSendLote();
+  if (l && l.codigos.length) return S.clients[l.codigos[0]];
+  return { codigo: 'C00123', razon: 'EMPRESA DEMO S.A.C.' };
+}
+function renderPreview() {
+  const c = previewClient();
+  $('#preview').textContent = personalize(S.mensaje, c) || '…';
+  $('#previewWho').textContent = `· ${c.codigo} // ${c.razon}`;
+  $('#charCount').textContent = `${S.mensaje.length} caracteres`;
+}
+function insertVar(v) {
+  const ta = $('#msg'); const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s;
+  ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length;
+  onMsgInput();
+}
+function onMsgInput() {
+  S.mensaje = $('#msg').value; save(); renderPreview(); renderNextBox();
+  if (ltMatches.length) { ltMatches = []; renderLT(); }
+}
+
+/* ---------- LanguageTool ---------- */
+let ltMatches = [];
+async function ltCheck() {
+  const text = $('#msg').value;
+  if (!text.trim()) { toast('Escribe un mensaje primero.', 'warn'); return; }
+  const btn = $('#ltCheck'); btn.disabled = true; btn.textContent = '⏳ Revisando…';
+  try {
+    const body = new URLSearchParams({ text, language: 'es' });
+    const r = await fetch('https://api.languagetool.org/v2/check', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    ltMatches = (data.matches || []).filter(m => {
+      const frag = text.substr(m.offset, m.length);
+      return !/[{}]/.test(frag) && !/^(codigo_cliente|razon_social)$/.test(frag);
+    }).map((m, i) => ({ id: i, offset: m.offset, length: m.length, original: text.substr(m.offset, m.length), message: m.message, short: m.shortMessage, reps: (m.replacements || []).slice(0, 4).map(x => x.value), type: m.rule?.issueType || '' }));
+    renderLT(true);
+  } catch (e) {
+    toast('No se pudo conectar con LanguageTool. Usa el corrector del navegador (subrayado rojo).', 'error', 3500);
+  } finally { btn.disabled = false; btn.textContent = '✔️ Revisar ortografía y redacción'; }
+}
+function renderLT(show) {
+  const panel = $('#ltPanel');
+  if (show) panel.classList.remove('hidden');
+  const text = $('#msg').value;
+  // resaltado
+  let html = '', pos = 0;
+  for (const m of ltMatches.slice().sort((a, b) => a.offset - b.offset)) {
+    if (m.offset < pos) continue;
+    html += esc(text.slice(pos, m.offset)) + `<mark class="lt-err text-transparent">${esc(text.substr(m.offset, m.length))}</mark>`;
+    pos = m.offset + m.length;
+  }
+  $('#msgHighlight').innerHTML = html + esc(text.slice(pos)) + '\n';
+  $('#msgHighlight').scrollTop = $('#msg').scrollTop;
+  $('#ltTitle').textContent = ltMatches.length ? `${ltMatches.length} sugerencia(s) encontradas` : '✅ Sin errores detectados';
+  $('#ltTitle').className = 'text-[12px] font-semibold ' + (ltMatches.length ? 'text-rose-600' : 'text-emerald-600');
+  $('#ltApplyAll').classList.toggle('hidden', !ltMatches.some(m => m.reps.length));
+  $('#ltList').innerHTML = ltMatches.map(m => `
+    <div class="px-3 py-2 text-[12px]">
+      <div class="flex items-start gap-2"><span class="font-semibold text-rose-600 line-through decoration-rose-300">${esc(m.original)}</span><span class="text-slate-500 flex-1">${esc(m.message)}</span>
+      <button data-lt-ignore="${m.id}" class="text-[11px] text-slate-400 hover:text-slate-600">Ignorar</button></div>
+      <div class="flex flex-wrap gap-1 mt-1.5">${m.reps.length ? m.reps.map((r, j) => `<button data-lt="${m.id}" data-rep="${j}" class="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 font-semibold">${esc(r) || '(eliminar)'}</button>`).join('') : '<span class="text-slate-400 italic">Sin sugerencia automática</span>'}</div>
+    </div>`).join('');
+}
+function ltApply(id, repIdx) {
+  const m = ltMatches.find(x => x.id === id); if (!m) return;
+  const ta = $('#msg'), text = ta.value;
+  if (text.substr(m.offset, m.length) !== m.original) { toast('El texto cambió; vuelve a revisar.', 'warn'); ltMatches = []; renderLT(); return; }
+  const rep = m.reps[repIdx];
+  ta.value = text.slice(0, m.offset) + rep + text.slice(m.offset + m.length);
+  const delta = rep.length - m.length;
+  ltMatches = ltMatches.filter(x => x.id !== id).map(x => x.offset > m.offset ? { ...x, offset: x.offset + delta } : x);
+  S.mensaje = ta.value; save(); renderPreview(); renderNextBox(); renderLT();
+}
+function ltApplyAll() {
+  const ta = $('#msg'); let text = ta.value;
+  const sorted = ltMatches.filter(m => m.reps.length).sort((a, b) => b.offset - a.offset);
+  let n = 0;
+  for (const m of sorted) {
+    if (text.substr(m.offset, m.length) !== m.original) continue;
+    text = text.slice(0, m.offset) + m.reps[0] + text.slice(m.offset + m.length); n++;
+  }
+  ta.value = text; ltMatches = ltMatches.filter(m => !m.reps.length);
+  S.mensaje = text; save(); renderPreview(); renderNextBox(); renderLT();
+  toast(`${n} corrección(es) aplicadas`, 'success');
+}
+
+/* =========================================================
+   CRONÓMETRO / ENVÍO PROGRAMADO
+   ========================================================= */
+const R = { running: false, target: 0, remaining: null, timer: null, blocked: null };
+function intervalMs(withJitter = true) {
+  let ms = Math.max(0.5, Number(S.settings.intervalo) || 5) * 60000;
+  if (withJitter && S.settings.variacion) ms += Math.round((Math.random() * 40 - 20) * 1000);
+  return Math.max(10000, ms);
+}
+function msToClock(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
+function startRunner() {
+  const l = getSendLote();
+  if (!l) { toast('Genera un lote primero.', 'warn'); return; }
+  if (!lotePending(l).length) { toast('Este lote ya fue enviado por completo.', 'warn'); return; }
+  if (!S.mensaje.trim()) { toast('Redacta el mensaje antes de comenzar.', 'warn'); return; }
+  if (R.running) return;
+  // Preabrir la ventana única (gesto del usuario) para evitar bloqueos de ventanas emergentes
+  if (!isApp() && (!waWin || waWin.closed)) {
+    const w = window.open('https://web.whatsapp.com/', WA_WINDOW);
+    if (w) { waWin = w; try { window.focus(); } catch (e) {} }
+    else toast('Permite ventanas emergentes para esta página.', 'warn', 3500);
+  }
+  R.running = true;
+  R.target = Date.now() + (R.remaining ?? intervalMs());
+  R.remaining = null;
+  clearInterval(R.timer); R.timer = setInterval(tick, 250);
+  tick(); renderRunner();
+  toast('Envío programado iniciado', 'success');
+}
+function pauseRunner() {
+  if (!R.running) return;
+  R.remaining = Math.max(0, R.target - Date.now());
+  R.running = false; clearInterval(R.timer); renderRunner();
+}
+function resetRunner() {
+  R.running = false; R.remaining = null; clearInterval(R.timer); hideBlocked(); renderRunner();
+}
+function tick() {
+  if (!R.running) return;
+  if (!R.firing && Date.now() >= R.target) fireNext(false);
+  renderClock();
+}
+function nextContact() { const l = getSendLote(); const p = lotePending(l); return p.length ? S.clients[p[0]] : null; }
+async function fireNext(manual) {
+  if (R.firing) return;
+  R.firing = true;
+  try { await fireNextInner(manual); } finally { R.firing = false; }
+}
+async function fireNextInner(manual) {
+  const c = nextContact();
+  const l = getSendLote();
+  if (!c) { finishLote(); return; }
+  const msg = personalize(S.mensaje, c);
+  const url = waSendUrl(c.telefono, msg);
+  copyText(msg);
+  const ok = await openWA(url, manual === 'click' || manual === 'resume');
+  if (!ok) {
+    R.running = false; clearInterval(R.timer); R.remaining = null;
+    showBlocked(c, msg, url); renderRunner();
+    return;
+  }
+  markSent(c.codigo, msg);
+  beep();
+  if (!lotePending(l).length) { finishLote(); return; }
+  if (R.running || manual === 'resume') { R.target = Date.now() + intervalMs(); if (!R.running) { R.running = true; clearInterval(R.timer); R.timer = setInterval(tick, 250); } }
+  renderRunner();
+}
+function finishLote() {
+  R.running = false; R.remaining = null; clearInterval(R.timer);
+  renderRunner(); toast('🎉 Lote completado: todos los mensajes fueron abiertos.', 'success', 4000);
+}
+function markSent(codigo, msg) {
+  const g = S.gestion[codigo]; if (!g) return;
+  g.enviado = true; g.fechaEnvio = Date.now(); g.msg = msg;
+  save(true);
+  renderStats(); renderLotes(); renderQueue(); renderNextBox(); updateRowSent(codigo);
+  toast(`Mensaje abierto para ${codigo} — copiado al portapapeles`, 'success');
+}
+let titleFlash = null;
+function showBlocked(c, msg, url) {
+  R.blocked = { c, msg, url };
+  $('#blockedWho').textContent = `${c.codigo} // ${c.razon}`;
+  $('#blockedBanner').classList.remove('hidden');
+  beep(); setTimeout(beep, 350);
+  clearInterval(titleFlash);
+  let on = false; titleFlash = setInterval(() => { on = !on; document.title = on ? '🔔 ¡Abrir siguiente chat!' : 'Difusión WhatsApp CRM'; }, 900);
+  try { window.focus(); } catch (e) {}
+}
+function hideBlocked() { R.blocked = null; clearInterval(titleFlash); titleFlash = null; $('#blockedBanner').classList.add('hidden'); }
+async function resolveBlocked() {
+  if (!R.blocked) return;
+  const { c, msg } = R.blocked;
+  copyText(msg);
+  if (await openWA(waSendUrl(c.telefono, msg), true)) {
+    hideBlocked(); markSent(c.codigo, msg);
+    if (lotePending(getSendLote()).length) { R.running = true; R.target = Date.now() + intervalMs(); clearInterval(R.timer); R.timer = setInterval(tick, 250); }
+    else finishLote();
+    renderRunner();
+  } else toast('El navegador bloqueó la ventana: permite ventanas emergentes en la barra de direcciones.', 'error', 4000);
+}
+let audioCtx;
+function beep() {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.frequency.value = 880; g.gain.setValueAtTime(0.08, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.25);
+    o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.26);
+  } catch (e) {}
+}
+function renderClock() {
+  let ms;
+  if (R.running) ms = R.target - Date.now();
+  else if (R.remaining != null) ms = R.remaining;
+  else ms = intervalMs(false);
+  const clock = msToClock(ms);
+  $('#countdown').textContent = clock;
+  $('#runPillTxt').textContent = clock;
+  if (!titleFlash) document.title = R.running ? `⏱ ${clock} · Difusión CRM` : 'Difusión WhatsApp CRM';
+}
+function renderRunner() {
+  const l = getSendLote();
+  const sent = loteSent(l), tot = l ? l.codigos.length : 0;
+  $('#progTxt').textContent = `${sent}/${tot}`;
+  $('#progBar').style.width = tot ? `${(sent / tot) * 100}%` : '0%';
+  const st = $('#runState');
+  if (R.running) { st.textContent = '● En ejecución'; st.className = 'text-[12px] font-semibold text-emerald-600'; }
+  else if (R.blocked) { st.textContent = '⚠ Esperando acción'; st.className = 'text-[12px] font-semibold text-amber-600'; }
+  else if (R.remaining != null) { st.textContent = '⏸ En pausa'; st.className = 'text-[12px] font-semibold text-amber-600'; }
+  else { st.textContent = tot && sent === tot ? '✓ Lote completado' : 'Detenido'; st.className = 'text-[12px] font-semibold ' + (tot && sent === tot ? 'text-emerald-600' : 'text-slate-500'); }
+  $('#countdown').className = 'text-5xl font-bold tabular-nums tracking-tight my-1 ' + (R.running ? 'text-indigo-600' : 'text-slate-800');
+  $('#btnStart').disabled = R.running;
+  $('#btnPause').disabled = !R.running;
+  $('#btnStart').innerHTML = R.remaining != null ? '▶ Reanudar' : '▶ Comenzar';
+  $('#runPill').className = (R.running ? 'hidden md:flex' : 'hidden') + ' items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700';
+  renderClock();
+}
+function renderNextBox() {
+  const c = nextContact(), l = getSendLote();
+  const box = $('#nextBox');
+  if (!l) { box.innerHTML = '<span class="text-slate-400">Genera o selecciona un lote para empezar.</span>'; return; }
+  if (!c) { box.innerHTML = '<span class="text-emerald-700 font-semibold">✓ Todos los contactos de este lote ya fueron enviados.</span>'; return; }
+  box.innerHTML = `<div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Siguiente contacto</div>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1"><span class="font-semibold">${esc(c.codigo)} // ${esc(c.razon)}</span><span class="text-slate-500 tabular-nums">${esc(fmtPhone(c.telefono))}</span></div>`;
+}
+function renderQueue() {
+  const l = getSendLote(); const q = $('#queue');
+  if (!l) { q.innerHTML = '<div class="text-[12px] text-slate-400">—</div>'; return; }
+  const nextCod = lotePending(l)[0];
+  q.innerHTML = l.codigos.map((cod, i) => {
+    const c = S.clients[cod], g = S.gestion[cod] || {};
+    const isNext = cod === nextCod;
+    return `<div class="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[12px] ${g.enviado ? 'row-sent' : isNext ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'}">
+      <span class="w-5 text-[10px] text-slate-400 tabular-nums">${i + 1}</span>
+      <span class="truncate flex-1"><b>${esc(cod)}</b> · ${esc(c?.razon)}</span>
+      ${g.enviado ? `<span class="text-[10px] font-bold text-emerald-700">✓ ${fmtTime(g.fechaEnvio)}</span>` : isNext ? '<span class="text-[10px] font-bold text-indigo-600">SIGUIENTE</span>' : ''}
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   PESTAÑA 2 · CRM
+   ========================================================= */
+let crmLimit = 60;
+function viewCodigos(view = S.ui.view) {
+  if (view === 'all') return S.lotes.flatMap(l => l.codigos);
+  if (view === 'today') return S.lotes.filter(l => l.fecha === todayKey()).flatMap(l => l.codigos);
+  if (view.startsWith('lote:')) return loteById(view.slice(5))?.codigos || [];
+  if (view.startsWith('date:')) return S.lotes.filter(l => l.fecha === view.slice(5)).flatMap(l => l.codigos);
+  return [];
+}
+function filteredCodigos() {
+  const q = normKey($('#search').value);
+  const qDigits = $('#search').value.replace(/\D/g, '');
+  const f = S.ui.sentFilter;
+  return viewCodigos().filter(cod => {
+    const c = S.clients[cod], g = S.gestion[cod]; if (!c || !g) return false;
+    if (f === 'sent' && !g.enviado) return false;
+    if (f === 'pending' && g.enviado) return false;
+    if (!q) return true;
+    if (normKey(c.codigo).includes(q) || normKey(c.razon).includes(q) || normKey(g.nombre).includes(q)) return true;
+    if (qDigits.length >= 3 && (c.telefono.includes(qDigits) || (g.tel || '').replace(/\D/g, '').includes(qDigits))) return true;
+    return false;
+  });
+}
+function renderViewSelect() {
+  const sel = $('#viewSel');
+  const today = todayKey();
+  const todayCount = viewCodigos('today').length;
+  const dates = [...new Set(S.lotes.map(l => l.fecha))].sort().reverse();
+  let html = `<option value="today">📅 Lote de hoy (${todayCount})</option>`;
+  html += `<optgroup label="Lotes">` + S.lotes.slice().reverse().map(l => `<option value="lote:${l.id}">${esc(loteLabel(l))}${l.fecha === today ? ' · hoy' : ''} (${loteSent(l)}/${l.codigos.length} enviados)</option>`).join('') + `</optgroup>`;
+  if (dates.length > 1) html += `<optgroup label="Por fecha">` + dates.map(d => `<option value="date:${d}">Todos del ${fmtDateKey(d)}</option>`).join('') + `</optgroup>`;
+  html += `<option value="all">🗂️ Historial completo (${Object.keys(S.gestion).length})</option>`;
+  sel.innerHTML = html;
+  const valid = [...sel.options].some(o => o.value === S.ui.view);
+  if (!valid) S.ui.view = 'today';
+  sel.value = S.ui.view;
+  $$('#sentFilter button').forEach(b => { const on = b.dataset.f === S.ui.sentFilter; b.className = (b.dataset.f !== 'all' ? 'border-l border-slate-200 ' : '') + 'px-3 py-2 ' + (on ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
+}
+function chipEstado(cod, g) {
+  return ESTADOS.map(e => {
+    const on = g.estado === e.v;
+    return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="estado" data-val="${esc(e.v)}" style="${on ? `background:${e.c}` : ''}">${esc(e.v)}</button>`;
+  }).join('');
+}
+function chipAccion(cod, g) {
+  return ACCIONES.map(a => {
+    const on = g.accion === a;
+    return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="accion" data-val="${esc(a)}" style="${on ? 'background:#4F46E5' : ''}">${esc(a)}</button>`;
+  }).join('');
+}
+function emailClass(v) { return !v ? '' : validEmail(v) ? 'good' : 'bad'; }
+function rowHtml(cod) {
+  const c = S.clients[cod], g = S.gestion[cod], l = loteById(g.loteId);
+  return `<div class="card px-4 py-3 ${g.enviado ? 'row-sent' : ''}" data-row="${esc(cod)}">
+    <div class="grid xl:grid-cols-[minmax(240px,1.05fr)_minmax(380px,1.7fr)_minmax(300px,1.25fr)] gap-x-4 gap-y-3">
+      <div class="min-w-0">
+        <div class="flex items-start gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="text-[12px] font-bold text-indigo-700 tabular-nums">${esc(c.codigo)}</div>
+            <div class="text-[13.5px] font-semibold leading-snug break-words">${esc(c.razon)}</div>
+          </div>
+          <button class="shrink-0 w-7 h-7 grid place-items-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-300" data-copy="${esc(cod)}" title="Copiar CÓDIGO // RAZÓN SOCIAL">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>
+          </button>
+        </div>
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
+          <a href="${waSendUrl(c.telefono)}" data-wa="${esc(cod)}" class="text-[12.5px] font-semibold text-emerald-700 hover:underline tabular-nums">📱 ${esc(fmtPhone(c.telefono))}</a>
+          <span data-sentbadge>${sentBadge(g)}</span>
+        </div>
+        <div class="text-[10.5px] text-slate-400 mt-1">${esc(loteLabel(l))}</div>
+      </div>
+      <div class="space-y-2 min-w-0">
+        <div><div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1 xl:hidden">Estado contacto</div><div class="flex flex-wrap gap-1" data-group="estado">${chipEstado(cod, g)}</div></div>
+        <div class="border-t border-dashed border-slate-200 pt-2"><div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1 xl:hidden">Próxima acción</div><div class="flex flex-wrap gap-1" data-group="accion">${chipAccion(cod, g)}</div></div>
+      </div>
+      <div class="grid grid-cols-2 gap-1.5 content-start min-w-0">
+        <input class="inp" data-cod="${esc(cod)}" data-field="nombre" value="${esc(g.nombre)}" placeholder="Nombre del contacto">
+        <input class="inp" data-cod="${esc(cod)}" data-field="tel" value="${esc(g.tel)}" placeholder="Teléfono directo" inputmode="tel">
+        <input class="inp col-span-2 ${emailClass(g.correo)}" data-cod="${esc(cod)}" data-field="correo" value="${esc(g.correo)}" placeholder="correo@empresa.com" type="email">
+        <input class="inp col-span-2" data-cod="${esc(cod)}" data-field="obs" value="${esc(g.obs)}" placeholder="Observación…">
+      </div>
+    </div>
+  </div>`;
+}
+function sentBadge(g) {
+  return g.enviado
+    ? `<button data-toggle-sent class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white" title="Clic para desmarcar">✓ Enviado ${fmtDateTime(g.fechaEnvio).slice(0, 10) === fmtDateTime(Date.now()).slice(0, 10) ? fmtTime(g.fechaEnvio) : fmtDateTime(g.fechaEnvio)}</button>`
+    : `<button data-toggle-sent class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200" title="Marcar como enviado manualmente">Pendiente</button>`;
+}
+function renderCRM(resetLimit) {
+  if (resetLimit) crmLimit = 60;
+  renderViewSelect();
+  const cods = filteredCodigos();
+  const list = $('#crmList'), empty = $('#crmEmpty');
+  const viewAll = viewCodigos();
+  const sentInView = viewAll.filter(c => S.gestion[c]?.enviado).length;
+  const tipified = viewAll.filter(c => S.gestion[c]?.estado).length;
+  $('#crmSummary').innerHTML = `Mostrando <b>${Math.min(cods.length, crmLimit)}</b> de <b>${cods.length}</b> · <span class="text-emerald-600 font-semibold">${sentInView} enviados</span> · ${tipified} tipificados de ${viewAll.length}`;
+  if (!cods.length) {
+    list.innerHTML = ''; empty.classList.remove('hidden');
+    empty.innerHTML = !S.lotes.length ? '📭 Aún no hay lotes. Ve a <b>Campaña y envío</b>, carga tu Excel y genera el primer lote de 30.' : S.ui.view === 'today' && !viewAll.length ? '📅 No hay lote generado hoy. Elige un lote anterior o el historial completo en el selector.' : '🔎 Sin resultados para este filtro.';
+    $('#crmMore').classList.add('hidden'); return;
+  }
+  empty.classList.add('hidden');
+  list.innerHTML = cods.slice(0, crmLimit).map(rowHtml).join('');
+  $('#crmMore').classList.toggle('hidden', cods.length <= crmLimit);
+}
+function updateRowSent(cod) {
+  const row = document.querySelector(`[data-row="${CSS.escape(cod)}"]`);
+  if (!row) return;
+  const g = S.gestion[cod];
+  row.classList.toggle('row-sent', !!g.enviado);
+  $('[data-sentbadge]', row).innerHTML = sentBadge(g);
+}
+
+/* =========================================================
+   EXPORTACIONES
+   ========================================================= */
+function exportRows(cods) {
+  return cods.map(cod => {
+    const c = S.clients[cod] || {}, g = S.gestion[cod] || {};
+    return {
+      'Código de Cliente': c.codigo, 'Razón Social': c.razon, 'Número de Contacto': c.telefono,
+      'Estado Envío': g.enviado ? 'Enviado' : 'Pendiente', 'Fecha y Hora Envío': g.enviado ? fmtDateTime(g.fechaEnvio) : '',
+      'Lote': loteLabel(loteById(g.loteId)), 'ESTADO CONTACTO': g.estado || '', 'PRÓXIMA ACCIÓN': g.accion || '',
+      'OBSERVACIÓN': g.obs || '', 'NOMBRE DEL CONTACTO': g.nombre || '', 'CORREO': g.correo || '', 'TELÉFONO': g.tel || '',
+    };
+  });
+}
+function exportExcel(scope) {
+  if (typeof XLSX === 'undefined') { toast('Librería de Excel no disponible.', 'error'); return; }
+  const cods = scope === 'all' ? S.lotes.flatMap(l => l.codigos) : viewCodigos();
+  if (!cods.length) { toast('No hay registros para exportar.', 'warn'); return; }
+  const ws = XLSX.utils.json_to_sheet(exportRows(cods), { header: EXPORT_COLS });
+  ws['!cols'] = [14, 38, 15, 12, 17, 22, 28, 20, 40, 24, 28, 15].map(w => ({ wch: w }));
+  ws['!autofilter'] = { ref: ws['!ref'] };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, scope === 'all' ? 'Historial' : 'Lote');
+  let name;
+  if (scope === 'all') name = `CRM_Historial_${todayKey()}.xlsx`;
+  else if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `CRM_Lote${l.num}_${l.fecha}.xlsx`; }
+  else name = `CRM_${S.ui.view.replace(':', '_')}_${todayKey()}.xlsx`;
+  XLSX.writeFile(wb, name);
+  toast(`Excel descargado (${cods.length} registros)`, 'success');
+}
+function vEsc(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\r?\n/g, '\\n'); }
+function exportVcf() {
+  const cods = viewCodigos();
+  if (!cods.length) { toast('Selecciona un lote con contactos.', 'warn'); return; }
+  const out = cods.map(cod => {
+    const c = S.clients[cod], g = S.gestion[cod] || {};
+    const name = `${c.codigo} // ${c.razon}`;
+    const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${vEsc(name)}`, `N:;${vEsc(name)};;;`, `ORG:${vEsc(c.razon)}`, `TEL;TYPE=CELL:+${c.telefono}`];
+    const extra = normalizePhone(g.tel); if (validPhone(extra) && extra !== c.telefono) lines.push(`TEL;TYPE=WORK:+${extra}`);
+    if (g.correo && validEmail(g.correo)) lines.push(`EMAIL:${vEsc(g.correo)}`);
+    lines.push('END:VCARD'); return lines.join('\r\n');
+  }).join('\r\n');
+  let name = 'contactos';
+  if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `contactos_lote${l.num}_${l.fecha}`; }
+  else name = `contactos_${S.ui.view.replace(':', '_')}_${todayKey()}`;
+  download(name + '.vcf', out + '\r\n', 'text/vcard;charset=utf-8');
+  toast(`${cods.length} contactos exportados (.vcf)`, 'success');
+}
+
+/* =========================================================
+   RESPALDO
+   ========================================================= */
+function exportBackup() {
+  download(`respaldo_difusion_crm_${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json');
+  toast('Respaldo descargado', 'success');
+}
+function importBackup(file) {
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if (!d || typeof d !== 'object' || !d.clients || !Array.isArray(d.lotes) || !d.gestion) throw new Error('Formato no válido');
+      if (!confirm(`¿Restaurar este respaldo?\n${Object.keys(d.clients).length} clientes · ${d.lotes.length} lotes.\nSe reemplazarán los datos actuales.`)) return;
+      const base = defaultState();
+      S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) } };
+      if (!Array.isArray(S.clientOrder) || !S.clientOrder.length) S.clientOrder = Object.keys(S.clients);
+      resetRunner(); save(true); syncInputs(); renderAll();
+      toast('Respaldo restaurado', 'success');
+    } catch (err) { toast('No se pudo restaurar: ' + err.message, 'error', 3500); }
+  };
+  r.readAsText(file);
+}
+
+/* =========================================================
+   RENDER GENERAL Y EVENTOS
+   ========================================================= */
+function setTab(t) {
+  S.ui.tab = t; save();
+  $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  $('#tab-campana').classList.toggle('hidden', t !== 'campana');
+  $('#tab-crm').classList.toggle('hidden', t !== 'crm');
+  if (t === 'crm') renderCRM(true);
+}
+function syncInputs() {
+  $('#msg').value = S.mensaje;
+  $('#interval').value = S.settings.intervalo;
+  $('#jitter').checked = !!S.settings.variacion;
+}
+function renderDest() {
+  const app = isApp();
+  $$('#destSel button').forEach((b) => { const on = b.dataset.dest === (app ? 'app' : 'web'); b.className = (b.dataset.dest === 'web' ? 'border-l border-slate-200 ' : '') + 'px-3 py-1.5 ' + (on ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
+  $('#btnTestApp').classList.toggle('hidden', !app);
+  $('#destHelp').innerHTML = app
+    ? 'Abre el chat directamente en la aplicación <b>WhatsApp instalada en tu PC</b>, con el mensaje ya escrito. <b>Primera vez:</b> pulsa <b>🔓 Activar apertura directa</b>; el navegador preguntará <i>“¿Abrir WhatsApp?”</i> → marca <b>“Permitir siempre…”</b> y pulsa <b>Abrir</b>. Desde ahí ya no vuelve a preguntar.'
+    : 'Abre WhatsApp Web en una única pestaña reutilizable. Permite ventanas emergentes para esta página.';
+  $('#runHelp').innerHTML = app
+    ? 'Al llegar a 00:00 se copia el mensaje y se abre el chat en la app de WhatsApp; solo presiona <b>Enviar</b> (Enter). Si el navegador no deja abrirla solo (pasa cuando no has tocado esta página desde el último envío), suena un aviso y aparece el botón verde <b>💬 Abrir en WhatsApp</b>: un clic y continúa.'
+    : 'Al llegar a 00:00 se copia el mensaje y se abre WhatsApp Web con el texto listo; solo presiona <b>Enviar</b>. Deja esta pestaña abierta.';
+}
+function renderAll() {
+  renderDest();
+  renderStats(); renderLotes(); renderPreview(); renderRunner(); renderNextBox(); renderQueue();
+  if (S.ui.tab === 'crm') renderCRM(true);
+}
+
+// Tabs
+$$('.tab-btn').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+// Backup menu
+$('#backupBtn').addEventListener('click', e => { e.stopPropagation(); $('#backupMenu').classList.toggle('hidden'); });
+$('#dlXlsBtn').addEventListener('click', e => { e.stopPropagation(); $('#dlXlsMenu').classList.toggle('hidden'); });
+document.addEventListener('click', () => { $('#backupMenu').classList.add('hidden'); $('#dlXlsMenu').classList.add('hidden'); });
+$('#bkExport').addEventListener('click', exportBackup);
+$('#bkImport').addEventListener('click', () => $('#bkFile').click());
+$('#bkFile').addEventListener('change', e => { if (e.target.files[0]) importBackup(e.target.files[0]); e.target.value = ''; });
+$('#bkWipe').addEventListener('click', () => {
+  if (!confirm('¿Borrar TODOS los datos (clientes, lotes y gestiones)?\nTe recomendamos descargar un respaldo antes.')) return;
+  if (prompt('Escribe BORRAR para confirmar') !== 'BORRAR') return;
+  resetRunner(); S = defaultState(); save(true); syncInputs(); renderAll(); setTab('campana'); toast('Datos eliminados');
+});
+// Excel import
+$('#xlsFile').addEventListener('change', e => { handleExcelFile(e.target.files[0]); e.target.value = ''; });
+const dz = $('#dropZone');
+['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-400', 'bg-indigo-50'); }));
+['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-400', 'bg-indigo-50'); }));
+dz.addEventListener('drop', e => handleExcelFile(e.dataTransfer.files[0]));
+// Lotes
+$('#genLote').addEventListener('click', generateLote);
+$('#loteList').addEventListener('click', e => {
+  const b = e.target.closest('[data-lote]'); if (!b) return;
+  if (R.running && b.dataset.lote !== S.ui.sendLoteId && !confirm('Hay un envío en curso. ¿Cambiar de lote? (se pausará)')) return;
+  if (b.dataset.lote !== S.ui.sendLoteId) resetRunner();
+  S.ui.sendLoteId = b.dataset.lote; save(); renderAll();
+});
+$('#sendLote').addEventListener('change', e => {
+  if (R.running && !confirm('Hay un envío en curso. ¿Cambiar de lote? (se pausará)')) { e.target.value = S.ui.sendLoteId; return; }
+  resetRunner(); S.ui.sendLoteId = e.target.value; save(); renderAll();
+});
+// Message
+$('#msg').addEventListener('input', onMsgInput);
+$('#msg').addEventListener('scroll', () => { $('#msgHighlight').scrollTop = $('#msg').scrollTop; });
+$$('[data-var]').forEach(b => b.addEventListener('click', () => insertVar(b.dataset.var)));
+$('#ltCheck').addEventListener('click', ltCheck);
+$('#ltClose').addEventListener('click', () => { ltMatches = []; renderLT(); $('#ltPanel').classList.add('hidden'); });
+$('#ltApplyAll').addEventListener('click', ltApplyAll);
+$('#ltList').addEventListener('click', e => {
+  const b = e.target.closest('[data-lt]'); if (b) return ltApply(+b.dataset.lt, +b.dataset.rep);
+  const ig = e.target.closest('[data-lt-ignore]'); if (ig) { ltMatches = ltMatches.filter(m => m.id !== +ig.dataset.ltIgnore); renderLT(); }
+});
+// Scheduler
+$('#interval').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { S.settings.intervalo = v; save(); if (!R.running && R.remaining == null) renderClock(); } });
+$('#jitter').addEventListener('change', e => { S.settings.variacion = e.target.checked; save(); });
+$('#btnStart').addEventListener('click', startRunner);
+$('#btnPause').addEventListener('click', pauseRunner);
+$('#btnReset').addEventListener('click', () => { resetRunner(); toast('Cronómetro reiniciado'); });
+$('#btnNow').addEventListener('click', () => {
+  const l = getSendLote();
+  if (!l || !lotePending(l).length) { toast('No hay contactos pendientes en este lote.', 'warn'); return; }
+  if (!S.mensaje.trim()) { toast('Redacta el mensaje primero.', 'warn'); return; }
+  const wasRunning = R.running;
+  fireNext(wasRunning ? 'resume' : 'click');
+});
+$('#blockedOpen').addEventListener('click', resolveBlocked);
+$('#destSel').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-dest]'); if (!b) return;
+  S.settings.destino = b.dataset.dest; save(); renderDest(); if (S.ui.tab === 'crm') renderCRM();
+});
+$('#btnTestApp').addEventListener('click', () => {
+  triggerProtocol('whatsapp://');
+  toast('Si el navegador pregunta, marca “Permitir siempre” y pulsa Abrir.', 'ok', 5000);
+});
+
+// CRM
+$('#viewSel').addEventListener('change', e => { S.ui.view = e.target.value; save(); renderCRM(true); });
+let searchT; $('#search').addEventListener('input', () => { clearTimeout(searchT); searchT = setTimeout(() => renderCRM(true), 120); });
+$('#sentFilter').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; S.ui.sentFilter = b.dataset.f; save(); renderCRM(true); });
+$('#crmMoreBtn').addEventListener('click', () => { crmLimit += 60; renderCRM(); });
+$('#dlVcf').addEventListener('click', exportVcf);
+$('#dlXlsView').addEventListener('click', () => exportExcel('view'));
+$('#dlXlsAll').addEventListener('click', () => exportExcel('all'));
+
+$('#crmList').addEventListener('click', async e => {
+  const chip = e.target.closest('.chip');
+  if (chip) {
+    const { cod, kind, val } = chip.dataset; const g = S.gestion[cod]; if (!g) return;
+    g[kind] = g[kind] === val ? '' : val; save();
+    const grp = chip.closest('[data-group]');
+    grp.innerHTML = kind === 'estado' ? chipEstado(cod, g) : chipAccion(cod, g);
+    return;
+  }
+  const cp = e.target.closest('[data-copy]');
+  if (cp) {
+    const c = S.clients[cp.dataset.copy];
+    if (await copyText(`${c.codigo} // ${c.razon}`)) {
+      toast('Copiado'); cp.classList.add('!text-emerald-600', '!border-emerald-400');
+      setTimeout(() => cp.classList.remove('!text-emerald-600', '!border-emerald-400'), 900);
+    } else toast('No se pudo copiar', 'error');
+    return;
+  }
+  const wa = e.target.closest('[data-wa]');
+  if (wa) {
+    e.preventDefault();
+    if (!(await openWA(wa.href, true))) toast('Permite ventanas emergentes para esta página.', 'warn');
+    return;
+  }
+  const ts = e.target.closest('[data-toggle-sent]');
+  if (ts) {
+    const cod = ts.closest('[data-row]').dataset.row, g = S.gestion[cod];
+    if (g.enviado) { if (!confirm('¿Desmarcar este contacto como enviado? Volverá a la cola de envío.')) return; g.enviado = false; g.fechaEnvio = null; }
+    else { g.enviado = true; g.fechaEnvio = Date.now(); }
+    save(true); updateRowSent(cod); renderStats(); renderLotes(); renderQueue(); renderNextBox(); renderRunner();
+  }
+});
+$('#crmList').addEventListener('input', e => {
+  const inp = e.target.closest('[data-field]'); if (!inp) return;
+  const g = S.gestion[inp.dataset.cod]; if (!g) return;
+  g[inp.dataset.field] = inp.value; save();
+  if (inp.dataset.field === 'correo') { inp.classList.remove('good', 'bad'); const cl = emailClass(inp.value.trim()); if (cl) inp.classList.add(cl); }
+});
+
+// Re-render del CRM cuando el contenido cambia desde otra pestaña del navegador
+window.addEventListener('storage', e => { if (e.key === LS_KEY && e.newValue && !R.running) { S = loadState(); syncInputs(); renderAll(); } });
+// Recalcular el reloj al volver a la pestaña
+document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+
+// INIT
+syncInputs();
+setTab(S.ui.tab || 'campana');
+renderAll();
+</script>
+</body>
+</html>
