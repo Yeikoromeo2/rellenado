@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Complemento "Rellenado CRM" para Excel (Microsoft 365 / Excel Online).
+  Alojado en GitHub Pages: https://yeikoromeo2.github.io/rellenado/
+-->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+           xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+           xsi:type="TaskPaneApp">
+  <Id>bfae72c9-3557-443f-8747-1e8b96aa3a16</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Yeikoromeo2</ProviderName>
+  <DefaultLocale>es-ES</DefaultLocale>
+  <DisplayName DefaultValue="Rellenado CRM"/>
+  <Description DefaultValue="Rellena FECHA CONTACTO, RESPONSABLE y la gestión del CRM en la hoja BD-BBPE a partir de códigos de cliente."/>
+  <IconUrl DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-64.png"/>
+  <SupportUrl DefaultValue="https://github.com/Yeikoromeo2/rellenado"/>
+  <AppDomains>
+    <AppDomain>https://yeikoromeo2.github.io</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Workbook"/>
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.1">
+      <Set Name="ExcelApi" MinVersion="1.7"/>
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://yeikoromeo2.github.io/rellenado/index.html"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <FunctionFile resid="Taskpane.Url"/>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="RellenadoCRM.Group">
+                <Label resid="Group.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="RellenadoCRM.TaskpaneButton">
+                  <Label resid="TaskpaneButton.Label"/>
+                  <Supertip>
+                    <Title resid="TaskpaneButton.Label"/>
+                    <Description resid="TaskpaneButton.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>RellenadoCRM.Pane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://yeikoromeo2.github.io/rellenado/index.html"/>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://github.com/Yeikoromeo2/rellenado"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Rellenado CRM listo"/>
+        <bt:String id="Group.Label" DefaultValue="Rellenado CRM"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Rellenado CRM"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Abre el panel desde Inicio > Rellenado CRM para rellenar la hoja BD-BBPE."/>
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Abre el panel para rellenar fecha, responsable y la gestión del CRM por código de cliente."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rellenado CRM</title>
+<link rel="icon" type="image/png" href="assets/icon-32.png">
+<!-- Office.js (oficial de Microsoft). Fuera de Excel no hace nada y la app pasa a modo local. -->
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  body { background: #F8FAFC; }
+  .card { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; }
+  .lbl { display: block; font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+  .inp { width: 100%; font-size: 13px; padding: 7px 9px; border: 1px solid #E2E8F0; border-radius: 8px; background: #fff; outline: none; }
+  .inp:focus { border-color: #4F46E5; box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 9px 12px; border-radius: 10px; transition: background .12s; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: #4F46E5; color: #fff; } .btn-primary:hover:not(:disabled) { background: #4338CA; }
+  .btn-green { background: #107C41; color: #fff; } .btn-green:hover:not(:disabled) { background: #0B5E31; }
+  .btn-ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; } .btn-ghost:hover:not(:disabled) { background: #F1F5F9; }
+  .chip { font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 10px; border: 1px solid #E2E8F0; background: #fff; color: #334155; transition: all .12s; }
+  .chip:hover { border-color: #A5B4FC; background: #EEF2FF; }
+  .chip.on { background: #4F46E5; border-color: #4F46E5; color: #fff; box-shadow: 0 1px 3px rgba(79,70,229,.35); }
+  .tab { flex: 1; font-size: 12.5px; font-weight: 600; padding: 7px 4px; border-radius: 8px; color: #64748B; }
+  .tab.on { background: #fff; color: #4338CA; box-shadow: 0 1px 2px rgba(15,23,42,.08); }
+  .scroll-thin::-webkit-scrollbar { width: 6px; } .scroll-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+  @keyframes tIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .toast { animation: tIn .18s ease; }
+</style>
+</head>
+<body class="font-sans text-slate-800 antialiased text-[13px] min-w-[300px]">
+<div class="max-w-[420px] mx-auto p-3 pb-24 space-y-3">
+
+  <!-- Encabezado -->
+  <header class="flex items-center gap-2">
+    <img src="assets/icon-32.png" alt="" class="w-7 h-7 rounded-md">
+    <div class="leading-tight min-w-0">
+      <div class="font-bold text-[14px]">Rellenado CRM</div>
+      <div id="modeBadge" class="text-[11px] text-slate-500 truncate">Detectando entorno…</div>
+    </div>
+    <button id="btnSettings" class="ml-auto w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-200/60" title="Configuración">
+      <svg viewBox="0 0 24 24" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+    </button>
+  </header>
+
+  <!-- Configuración -->
+  <section id="settings" class="card p-3 space-y-2.5 hidden">
+    <div class="flex items-center justify-between">
+      <span class="font-semibold text-[13px]">Configuración</span>
+      <button id="btnReloadSheets" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Recargar hojas</button>
+    </div>
+    <div>
+      <label class="lbl" for="cfgSheet">Hoja destino</label>
+      <select id="cfgSheet" class="inp"></select>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="lbl" for="cfgIdTarget">ID en hoja</label>
+        <input id="cfgIdTarget" class="inp" placeholder="Customer ID">
+      </div>
+      <div>
+        <label class="lbl" for="cfgIdCrm">ID en archivo CRM</label>
+        <input id="cfgIdCrm" class="inp" placeholder="Código de Cliente">
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <div>
+        <label class="lbl" for="cfgDateCol">Columna fecha</label>
+        <input id="cfgDateCol" class="inp" placeholder="FECHA CONTACTO">
+      </div>
+      <div>
+        <label class="lbl" for="cfgRespCol">Columna responsable</label>
+        <input id="cfgRespCol" class="inp" placeholder="RESPONSABLE">
+      </div>
+    </div>
+    <div>
+      <label class="lbl" for="cfgDateFmt">Formato de fecha en Excel</label>
+      <input id="cfgDateFmt" class="inp" placeholder="mm/dd/yyyy">
+    </div>
+    <p class="text-[11px] text-slate-500">Los encabezados se detectan solos en las 10 primeras filas, sin importar mayúsculas, tildes ni espacios.</p>
+  </section>
+
+  <!-- Excel maestro (solo modo local) -->
+  <section id="localCard" class="card p-3 hidden">
+    <div class="flex items-center justify-between mb-2">
+      <span class="font-semibold">Excel maestro (local)</span>
+      <span class="text-[10.5px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">sin subir a internet</span>
+    </div>
+    <label class="block border-2 border-dashed border-slate-200 rounded-lg p-3 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40" id="masterDrop">
+      <input id="masterFile" type="file" accept=".xlsx,.xlsm,.xls" class="hidden">
+      <div id="masterName" class="text-[12.5px] font-semibold text-slate-700">📂 Cargar "NUEVOS REGISTROS 2026"</div>
+      <div class="text-[11px] text-slate-500 mt-0.5">.xlsx · se procesa en la memoria del navegador</div>
+    </label>
+    <div id="masterInfo" class="text-[11.5px] text-slate-500 mt-2 hidden"></div>
+  </section>
+
+  <!-- Pestañas -->
+  <nav class="flex gap-1 p-1 rounded-xl bg-slate-200/60">
+    <button class="tab" data-tab="a1">1 · Fecha y responsable</button>
+    <button class="tab" data-tab="a2">2 · Cargar CRM</button>
+  </nav>
+
+  <!-- ACCIÓN 1 -->
+  <section id="tab-a1" class="space-y-3">
+    <div class="card p-3">
+      <div class="flex items-center justify-between mb-1">
+        <label class="lbl !mb-0" for="codes">Códigos de cliente</label>
+        <button id="btnClearCodes" class="text-[11.5px] text-slate-500 hover:text-rose-600">Limpiar</button>
+      </div>
+      <textarea id="codes" rows="7" spellcheck="false" class="inp font-mono !text-[12px] resize-y" placeholder="Pega aquí la columna de códigos&#10;C00123&#10;C00456&#10;…"></textarea>
+      <div class="flex items-center gap-2 mt-1.5 text-[11.5px]">
+        <span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold"><span id="codesCount">0</span> únicos</span>
+        <span id="codesExtra" class="text-slate-500"></span>
+      </div>
+    </div>
+
+    <div class="card p-3 space-y-3">
+      <div>
+        <label class="lbl" for="date">Fecha contacto</label>
+        <div class="flex gap-2">
+          <input id="date" type="date" class="inp">
+          <button id="btnToday" class="btn btn-ghost !px-2.5 !py-1.5 !text-[12px]">Hoy</button>
+        </div>
+        <div class="text-[11px] text-slate-500 mt-1">Se escribirá: <b id="datePreview" class="text-slate-700"></b></div>
+      </div>
+      <div>
+        <span class="lbl">Responsable</span>
+        <div id="respChips" class="grid grid-cols-2 gap-1.5"></div>
+      </div>
+      <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer select-none">
+        <input id="overwrite1" type="checkbox" class="w-4 h-4 accent-indigo-600" checked>
+        Sobrescribir si la celda ya tiene datos
+      </label>
+    </div>
+
+    <button id="btnRun1" class="btn btn-primary w-full !py-2.5">▶ Ejecutar acción 1</button>
+    <div id="prog1" class="hidden"></div>
+    <div id="result1"></div>
+  </section>
+
+  <!-- ACCIÓN 2 -->
+  <section id="tab-a2" class="space-y-3 hidden">
+    <div class="card p-3">
+      <span class="lbl">Archivo CRM descargado</span>
+      <label id="crmDrop" class="block border-2 border-dashed border-slate-200 rounded-lg p-3 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40">
+        <input id="crmFile" type="file" accept=".xlsx,.xls,.csv" class="hidden">
+        <div id="crmName" class="text-[12.5px] font-semibold text-slate-700">📄 Elegir CRM_Lote… .xlsx</div>
+        <div class="text-[11px] text-slate-500 mt-0.5">Se lee en memoria, no se envía a ningún servidor</div>
+      </label>
+      <div id="crmInfo" class="text-[11.5px] text-slate-500 mt-2 hidden"></div>
+    </div>
+
+    <div id="colsCard" class="card p-3 hidden">
+      <div class="flex items-center justify-between mb-1.5">
+        <span class="lbl !mb-0">Columnas a trasladar</span>
+        <button id="btnRefreshCols" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Revisar</button>
+      </div>
+      <div id="colsList" class="space-y-1 max-h-56 overflow-y-auto scroll-thin"></div>
+      <p class="text-[11px] text-slate-500 mt-2">🛡️ Las celdas vacías del archivo CRM no borran lo que ya existe en la hoja.</p>
+    </div>
+
+    <button id="btnRun2" class="btn btn-green w-full !py-2.5">⇢ Rellenar información en Excel</button>
+    <div id="prog2" class="hidden"></div>
+    <div id="result2"></div>
+  </section>
+
+</div>
+
+<!-- Barra inferior fija: deshacer + descarga local -->
+<div class="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-slate-200">
+  <div class="max-w-[420px] mx-auto px-3 py-2 flex gap-2">
+    <button id="btnUndo" class="btn btn-ghost flex-1 !text-[12px]" disabled>↶ Deshacer última acción</button>
+    <button id="btnDownload" class="btn btn-green flex-1 !text-[12px] hidden">⬇ Descargar Excel</button>
+  </div>
+</div>
+
+<div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
+
+<script src="app.js?v=1.0.0"></script>
+</body>
+</html>
