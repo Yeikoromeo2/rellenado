@@ -7,9 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script>
-  tailwind.config = {
-    theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } }
-  };
+  tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } } };
 </script>
 <style>
   body { background: #F8FAFC; }
@@ -21,28 +19,31 @@
   .inp:focus { border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
   .inp.bad { border-color: #F43F5E; background: #FFF1F2; }
   .inp.good { border-color: #10B981; }
+  .lbl { display: block; font-size: 10.5px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; transition: all .12s; white-space: nowrap; }
   .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-primary { background: #4F46E5; color: #fff; }
-  .btn-primary:hover:not(:disabled) { background: #4338CA; }
-  .btn-ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; }
-  .btn-ghost:hover:not(:disabled) { background: #F1F5F9; }
-  .btn-green { background: #059669; color: #fff; }
-  .btn-green:hover:not(:disabled) { background: #047857; }
-  .btn-amber { background: #F59E0B; color: #fff; }
-  .btn-amber:hover:not(:disabled) { background: #D97706; }
+  .btn-primary { background: #4F46E5; color: #fff; } .btn-primary:hover:not(:disabled) { background: #4338CA; }
+  .btn-ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; } .btn-ghost:hover:not(:disabled) { background: #F1F5F9; }
+  .btn-green { background: #059669; color: #fff; } .btn-green:hover:not(:disabled) { background: #047857; }
   .row-sent { background: #ECFDF5; border-color: #A7F3D0 !important; }
+  .row-next { background: #EEF2FF; }
   .tab-btn { padding: 8px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #64748B; }
   .tab-btn.active { background: #EEF2FF; color: #4338CA; }
+  .tpl-tab { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 8px; color: #64748B; border: 1px solid transparent; }
+  .tpl-tab.on { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
+  .tpl-tab.off { text-decoration: line-through; opacity: .6; }
   .lt-err { background: rgba(244,63,94,.18); border-bottom: 2px solid #F43F5E; border-radius: 2px; }
   .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
   .scroll-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
   .wa-bubble { background: #DCF8C6; border-radius: 10px 10px 2px 10px; }
   .wa-bg { background-color: #EFEAE2; background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size: 14px 14px; }
+  .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp2.open { -webkit-line-clamp: unset; display: block; }
   @keyframes pulseSave { 0%{transform:scale(1)} 50%{transform:scale(1.6)} 100%{transform:scale(1)} }
   .pulse-save { animation: pulseSave .45s ease; }
   .toast-enter { animation: tIn .2s ease; }
   @keyframes tIn { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none; } }
+  details > summary { list-style: none; cursor: pointer; } details > summary::-webkit-details-marker { display: none; }
 </style>
 </head>
 <body class="font-sans text-slate-800 antialiased">
@@ -56,7 +57,7 @@
       </div>
       <div class="leading-tight hidden sm:block">
         <div class="text-[14px] font-bold">Difusión CRM</div>
-        <div class="text-[11px] text-slate-500">WhatsApp Web · Seguimiento diario</div>
+        <div class="text-[11px] text-slate-500">Cadencia humana · Seguimiento diario</div>
       </div>
     </div>
     <nav class="flex items-center gap-1 ml-2 sm:ml-6">
@@ -64,10 +65,8 @@
       <button class="tab-btn" data-tab="crm">2 · Gestión CRM</button>
     </nav>
     <div class="ml-auto flex items-center gap-3">
-      <div id="runPill" class="hidden md:flex items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">
-        <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span><span id="runPillTxt">00:00</span>
-      </div>
-      <div id="saveInd" class="flex items-center gap-1.5 text-[12px] text-slate-500" title="Todo se guarda en este navegador (localStorage)">
+      <div id="runPill" class="hidden"></div>
+      <div class="flex items-center gap-1.5 text-[12px] text-slate-500" title="Todo se guarda en este navegador (localStorage)">
         <span id="saveDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
         <span id="saveTxt" class="hidden sm:inline">Guardado automáticamente</span>
       </div>
@@ -91,144 +90,196 @@
 
   <!-- ============ STATS ============ -->
   <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Base total</div><div id="stTotal" class="text-2xl font-bold mt-0.5">0</div><div id="stTotalSub" class="text-[11px] text-slate-400"></div></div>
-    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Ya gestionados</div><div id="stAssigned" class="text-2xl font-bold mt-0.5 text-indigo-600">0</div><div id="stAssignedSub" class="text-[11px] text-slate-400">asignados a lotes</div></div>
-    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Disponibles por contactar</div><div id="stAvail" class="text-2xl font-bold mt-0.5 text-slate-800">0</div><div id="stAvailSub" class="text-[11px] text-slate-400"></div></div>
-    <div class="card px-4 py-3"><div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Mensajes enviados</div><div id="stSent" class="text-2xl font-bold mt-0.5 text-emerald-600">0</div><div id="stSentSub" class="text-[11px] text-slate-400"></div></div>
+    <div class="card px-4 py-3"><div class="lbl">Base total</div><div id="stTotal" class="text-2xl font-bold">0</div><div id="stTotalSub" class="text-[11px] text-slate-400"></div></div>
+    <div class="card px-4 py-3"><div class="lbl">Ya gestionados</div><div id="stAssigned" class="text-2xl font-bold text-indigo-600">0</div><div class="text-[11px] text-slate-400">asignados a lotes</div></div>
+    <div class="card px-4 py-3"><div class="lbl">Disponibles por contactar</div><div id="stAvail" class="text-2xl font-bold">0</div><div id="stAvailSub" class="text-[11px] text-slate-400"></div></div>
+    <div class="card px-4 py-3"><div class="lbl">Mensajes enviados</div><div id="stSent" class="text-2xl font-bold text-emerald-600">0</div><div id="stSentSub" class="text-[11px] text-slate-400"></div></div>
   </section>
 
   <!-- ============ TAB 1 ============ -->
-  <section id="tab-campana" class="hidden">
-    <div class="grid lg:grid-cols-12 gap-5">
+  <section id="tab-campana" class="hidden space-y-5">
 
-      <!-- Left column -->
+    <!-- PANEL DE CADENCIA -->
+    <div class="card p-4">
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <h2 class="font-bold text-[15px] mr-auto">Panel de control de cadencia</h2>
+        <label class="text-[12px] text-slate-500">Lote</label>
+        <select id="sendLote" class="inp !w-auto !py-1.5"></select>
+      </div>
+
+      <div id="blockedBanner" class="hidden mb-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-[13px] flex flex-wrap items-center gap-3">
+        <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat con su mensaje único.</span>
+        <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
+      </div>
+      <div id="dirtyBanner" class="hidden mb-3 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[12.5px] flex flex-wrap items-center gap-2">
+        <span>✏️ Cambiaste plantillas o bloques. Los mensajes pendientes aún usan la versión anterior.</span>
+        <button class="btn btn-ghost !py-1 !text-[12px] ml-auto" data-recalc>Recalcular tiempos y textos</button>
+      </div>
+
+      <div class="grid md:grid-cols-12 gap-3">
+        <div class="md:col-span-4 rounded-xl bg-slate-50 border border-slate-200 p-4 flex flex-col items-center justify-center text-center">
+          <div id="cadState" class="text-[12px] font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600">Detenido</div>
+          <div id="countdown" class="text-5xl font-bold tabular-nums tracking-tight my-2 text-slate-800">--:--</div>
+          <div id="countdownLbl" class="text-[11.5px] text-slate-500">para el siguiente contacto</div>
+          <div class="w-full mt-3">
+            <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>Progreso del lote</span><span id="progTxt">0/0</span></div>
+            <div class="h-2 bg-slate-200 rounded-full overflow-hidden"><div id="progBar" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
+          </div>
+        </div>
+        <div class="md:col-span-8 flex flex-col gap-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Pendientes</div><div id="kPend" class="text-xl font-bold">0</div></div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Ritmo prom.</div><div id="kRate" class="text-xl font-bold">—</div></div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Cierre proyectado</div><div id="kEnd" class="text-xl font-bold tabular-nums">—</div></div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Jornada</div><div id="kWin" class="text-xl font-bold tabular-nums">09:00–18:00</div></div>
+          </div>
+          <div id="fitBox" class="rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600">—</div>
+          <div class="flex flex-wrap gap-2">
+            <button id="btnStart" class="btn btn-primary">▶ Comenzar</button>
+            <button id="btnPause" class="btn btn-ghost">⏸ Pausar</button>
+            <button id="btnNow" class="btn btn-ghost" title="Abrir el siguiente contacto sin esperar">⚡ Enviar siguiente ahora</button>
+            <button class="btn btn-ghost" data-recalc>🔄 Recalcular tiempos y textos</button>
+          </div>
+          <div id="nextBox" class="rounded-xl border border-slate-200 p-3 text-[12.5px]"></div>
+        </div>
+      </div>
+
+      <div class="mt-3 rounded-xl border border-slate-200 p-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-[12px] font-semibold text-slate-600 mr-1">Abrir en:</span>
+          <div id="destSel" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12.5px] font-semibold">
+            <button data-dest="app" class="px-3 py-1.5">💻 WhatsApp de la PC</button>
+            <button data-dest="web" class="px-3 py-1.5 border-l border-slate-200">🌐 WhatsApp Web</button>
+          </div>
+          <button id="btnTestApp" class="btn btn-ghost !py-1.5 !text-[12px] ml-auto">🔓 Activar apertura directa (1 sola vez)</button>
+        </div>
+        <p id="destHelp" class="text-[11.5px] text-slate-500 mt-2 leading-relaxed"></p>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-12 gap-5">
+      <!-- Columna izquierda -->
       <div class="lg:col-span-4 space-y-5">
         <div class="card p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-bold text-[15px]">Base de clientes</h2>
-            <span class="text-[11px] text-slate-400">.xlsx / .xls</span>
-          </div>
+          <div class="flex items-center justify-between mb-3"><h2 class="font-bold text-[15px]">Base de clientes</h2><span class="text-[11px] text-slate-400">.xlsx / .xls</span></div>
           <label id="dropZone" class="block border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition">
             <input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
             <div class="text-3xl mb-1">📄</div>
             <div class="text-[13px] font-semibold text-slate-700">Arrastra o haz clic para cargar Excel</div>
-            <div class="text-[11px] text-slate-500 mt-1">Columnas: Código de Cliente · Razón Social · Número de Contacto</div>
+            <div class="text-[11px] text-slate-500 mt-1">Obligatorias: Código de Cliente · Razón Social · Número de Contacto.<br>Las demás columnas se vuelven variables {{columna}}.</div>
           </label>
           <div id="importResult" class="hidden mt-3 text-[12px] rounded-lg p-3"></div>
         </div>
 
         <div class="card p-4">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-bold text-[15px]">Lotes diarios</h2>
-            <span id="loteCount" class="text-[11px] text-slate-400"></span>
-          </div>
+          <div class="flex items-center justify-between mb-3"><h2 class="font-bold text-[15px]">Lotes diarios</h2><span id="loteCount" class="text-[11px] text-slate-400"></span></div>
           <button id="genLote" class="btn btn-primary w-full">🎲 Generar nuevo lote de 30 al azar</button>
-          <p class="text-[11px] text-slate-500 mt-2">Toma solo contactos nunca asignados. Los lotes anteriores se conservan.</p>
-          <div id="loteList" class="mt-3 space-y-2 max-h-[340px] overflow-y-auto scroll-thin pr-1"></div>
+          <p class="text-[11px] text-slate-500 mt-2">Toma solo contactos nunca asignados y les genera texto y hora programada.</p>
+          <div id="loteList" class="mt-3 space-y-2 max-h-[300px] overflow-y-auto scroll-thin pr-1"></div>
+        </div>
+
+        <div class="card p-4">
+          <h2 class="font-bold text-[15px] mb-3">Motor de cadencia humana</h2>
+          <div class="space-y-3 text-[12.5px]">
+            <div>
+              <span class="lbl">Ventana laboral</span>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="cStart" type="time" class="inp" data-cad="start">
+                <input id="cEnd" type="time" class="inp" data-cad="end">
+              </div>
+              <label class="flex items-center gap-2 mt-1.5 text-[12px] text-slate-600"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-cad="sabado"> Incluir sábados como día hábil</label>
+            </div>
+            <div>
+              <span class="lbl">Intervalo entre contactos (seg · distribución normal)</span>
+              <div class="grid grid-cols-2 gap-2"><input type="number" min="10" class="inp" data-cad="gapMin" title="Mínimo"><input type="number" min="10" class="inp" data-cad="gapMax" title="Máximo"></div>
+            </div>
+            <div>
+              <span class="lbl">Simulación de escritura (ms por carácter)</span>
+              <div class="grid grid-cols-2 gap-2"><input type="number" min="0" class="inp" data-cad="typMin"><input type="number" min="0" class="inp" data-cad="typMax"></div>
+            </div>
+            <div>
+              <span class="lbl">Pausa por fatiga: cada N envíos (mín–máx)</span>
+              <div class="grid grid-cols-2 gap-2"><input type="number" min="1" class="inp" data-cad="fatMin"><input type="number" min="1" class="inp" data-cad="fatMax"></div>
+            </div>
+            <div>
+              <span class="lbl">Duración del descanso (minutos)</span>
+              <div class="grid grid-cols-2 gap-2"><input type="number" min="0" step="0.5" class="inp" data-cad="brkMin"><input type="number" min="0" step="0.5" class="inp" data-cad="brkMax"></div>
+            </div>
+            <div>
+              <span class="lbl">Si el lote no cabe antes del cierre</span>
+              <label class="flex items-start gap-2 py-1 cursor-pointer"><input type="radio" name="cmode" value="ajuste" class="mt-0.5 accent-indigo-600" data-cad="mode"> <span><b>Ajuste proporcional:</b> acorta intervalos y descansos para cerrar a tiempo, sin bajar del piso mínimo.</span></label>
+              <label class="flex items-start gap-2 py-1 cursor-pointer"><input type="radio" name="cmode" value="desborde" class="mt-0.5 accent-indigo-600" data-cad="mode"> <span><b>Desborde:</b> se detiene al cierre y reprograma el resto al siguiente día hábil.</span></label>
+              <div class="flex items-center gap-2 mt-1"><span class="text-[12px] text-slate-500">Piso mínimo de seguridad</span><input type="number" min="5" class="inp !w-20" data-cad="floor"><span class="text-[12px] text-slate-500">seg</span></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Right column -->
+      <!-- Columna derecha -->
       <div class="lg:col-span-8 space-y-5">
-        <!-- Message composer -->
         <div class="card p-4">
           <div class="flex flex-wrap items-center gap-2 mb-3">
-            <h2 class="font-bold text-[15px] mr-auto">Mensaje de difusión</h2>
-            <button class="btn btn-ghost !py-1.5 !px-2.5 !text-[12px]" data-var="{codigo_cliente}">＋ {codigo_cliente}</button>
-            <button class="btn btn-ghost !py-1.5 !px-2.5 !text-[12px]" data-var="{razon_social}">＋ {razon_social}</button>
+            <h2 class="font-bold text-[15px] mr-auto">Plantillas multi‑variante (Spintax)</h2>
+            <div id="tplTabs" class="flex flex-wrap gap-1"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-1.5 mb-2">
+            <span class="text-[11px] text-slate-500 mr-1">Insertar:</span>
+            <div id="varChips" class="flex flex-wrap gap-1.5"></div>
+            <button class="btn btn-ghost !py-1 !px-2 !text-[11.5px]" data-ins="{opción 1|opción 2|opción 3}">{ a | b }</button>
           </div>
           <div class="grid md:grid-cols-2 gap-4">
             <div>
               <div class="relative">
-                <div id="msgHighlight" aria-hidden="true" class="absolute inset-0 px-3 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words text-transparent pointer-events-none overflow-hidden rounded-xl border border-transparent"></div>
-                <textarea id="msg" spellcheck="true" lang="es" rows="9" class="relative w-full bg-transparent px-3 py-2.5 text-[13.5px] leading-relaxed border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y" placeholder="Escribe tu mensaje…"></textarea>
+                <div id="msgHighlight" aria-hidden="true" class="absolute inset-0 px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words text-transparent pointer-events-none overflow-hidden rounded-xl border border-transparent font-mono"></div>
+                <textarea id="msg" spellcheck="true" lang="es" rows="8" class="relative w-full bg-transparent px-3 py-2.5 text-[13px] leading-relaxed border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y font-mono" placeholder="{Te escribo|Me comunico} para {contarte|compartirte} …"></textarea>
               </div>
-              <div class="flex items-center gap-2 mt-2">
-                <button id="ltCheck" class="btn btn-ghost !text-[12.5px]">✔️ Revisar ortografía y redacción</button>
-                <span id="charCount" class="ml-auto text-[11px] text-slate-400"></span>
+              <div class="flex flex-wrap items-center gap-2 mt-2">
+                <label class="flex items-center gap-1.5 text-[12px] text-slate-600"><input id="tplOn" type="checkbox" class="w-4 h-4 accent-indigo-600"> Activa</label>
+                <button id="tplAdd" class="text-[12px] text-indigo-600 font-semibold hover:underline">＋ Agregar</button>
+                <button id="tplDel" class="text-[12px] text-rose-600 hover:underline">Eliminar</button>
+                <button id="ltCheck" class="btn btn-ghost !py-1 !text-[12px] ml-auto">✔️ Revisar ortografía</button>
               </div>
               <div id="ltPanel" class="hidden mt-3 border border-slate-200 rounded-xl overflow-hidden">
                 <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
                   <span id="ltTitle" class="text-[12px] font-semibold"></span>
-                  <div class="flex gap-1">
-                    <button id="ltApplyAll" class="text-[11px] font-semibold text-indigo-600 hover:underline px-1">Aplicar todas</button>
-                    <button id="ltClose" class="text-[11px] text-slate-500 hover:underline px-1">Cerrar</button>
-                  </div>
+                  <div class="flex gap-1"><button id="ltApplyAll" class="text-[11px] font-semibold text-indigo-600 hover:underline px-1">Aplicar todas</button><button id="ltClose" class="text-[11px] text-slate-500 hover:underline px-1">Cerrar</button></div>
                 </div>
                 <div id="ltList" class="max-h-56 overflow-y-auto scroll-thin divide-y divide-slate-100"></div>
               </div>
             </div>
             <div>
-              <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Vista previa <span id="previewWho" class="normal-case font-normal text-slate-400"></span></div>
-              <div class="wa-bg rounded-xl p-3 min-h-[214px] border border-slate-200">
-                <div class="wa-bubble ml-auto max-w-[92%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-sm"><span id="preview"></span><div class="text-right text-[10px] text-slate-500 mt-1">ahora ✓✓</div></div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="lbl !mb-0">Vista previa <span id="previewWho" class="normal-case font-normal text-slate-400"></span></span>
+                <button id="btnVariant" class="text-[12px] font-semibold text-indigo-600 hover:underline">🎲 Otra variante</button>
               </div>
+              <div class="wa-bg rounded-xl p-3 min-h-[200px] border border-slate-200">
+                <div class="wa-bubble ml-auto max-w-[94%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-sm"><span id="preview"></span><div class="text-right text-[10px] text-slate-500 mt-1">ahora ✓✓</div></div>
+              </div>
+              <div id="previewMeta" class="text-[11.5px] text-slate-500 mt-1.5"></div>
             </div>
           </div>
+
+          <details class="mt-4 rounded-xl border border-slate-200">
+            <summary class="px-3 py-2.5 text-[13px] font-semibold flex items-center gap-2">🧩 Bloques rotativos y valores de respaldo <span class="text-[11px] font-normal text-slate-400">(una opción por línea · admite Spintax y {{variables}})</span></summary>
+            <div class="p-3 pt-0 grid md:grid-cols-2 gap-3" id="blocksBox"></div>
+          </details>
         </div>
+      </div>
+    </div>
 
-        <!-- Scheduler -->
-        <div class="card p-4">
-          <div class="flex flex-wrap items-center gap-2 mb-4">
-            <h2 class="font-bold text-[15px] mr-auto">Envío programado anti‑spam</h2>
-            <label class="text-[12px] text-slate-500">Lote a enviar</label>
-            <select id="sendLote" class="inp !w-auto !py-1.5"></select>
-          </div>
-
-          <!-- Destino: app de escritorio o web -->
-          <div class="mb-4 rounded-xl border border-slate-200 p-3">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-[12px] font-semibold text-slate-600 mr-1">Abrir en:</span>
-              <div id="destSel" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12.5px] font-semibold">
-                <button data-dest="app" class="px-3 py-1.5">💻 WhatsApp de la PC</button>
-                <button data-dest="web" class="px-3 py-1.5 border-l border-slate-200">🌐 WhatsApp Web</button>
-              </div>
-              <button id="btnTestApp" class="btn btn-ghost !py-1.5 !text-[12px] ml-auto">🔓 Activar apertura directa (1 sola vez)</button>
-            </div>
-            <p id="destHelp" class="text-[11.5px] text-slate-500 mt-2 leading-relaxed"></p>
-          </div>
-
-          <div id="blockedBanner" class="hidden mb-4 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-[13px] flex flex-wrap items-center gap-3">
-            <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat en WhatsApp con el mensaje listo.</span>
-            <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
-          </div>
-
-          <div class="grid md:grid-cols-12 gap-4 items-stretch">
-            <div class="md:col-span-5 rounded-xl bg-slate-50 border border-slate-200 p-4 flex flex-col items-center justify-center">
-              <div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Próximo envío en</div>
-              <div id="countdown" class="text-5xl font-bold tabular-nums tracking-tight my-1 text-slate-800">05:00</div>
-              <div id="runState" class="text-[12px] font-semibold text-slate-500">Detenido</div>
-              <div class="w-full mt-3">
-                <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>Progreso del lote</span><span id="progTxt">0/0</span></div>
-                <div class="h-2 bg-slate-200 rounded-full overflow-hidden"><div id="progBar" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
-              </div>
-            </div>
-            <div class="md:col-span-7 flex flex-col gap-3">
-              <div class="flex flex-wrap items-end gap-3">
-                <div>
-                  <label class="block text-[11px] font-semibold text-slate-500 mb-1">Intervalo (minutos)</label>
-                  <input id="interval" type="number" min="0.5" step="0.5" class="inp !w-28 !text-[14px] font-semibold">
-                </div>
-                <label class="flex items-center gap-2 text-[12.5px] text-slate-600 pb-1.5 cursor-pointer select-none">
-                  <input id="jitter" type="checkbox" class="w-4 h-4 accent-indigo-600"> Variación aleatoria ±20 s
-                </label>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                <button id="btnStart" class="btn btn-primary">▶ Comenzar</button>
-                <button id="btnPause" class="btn btn-ghost">⏸ Pausar</button>
-                <button id="btnReset" class="btn btn-ghost">↺ Reiniciar</button>
-                <button id="btnNow" class="btn btn-ghost" title="Enviar el siguiente contacto sin esperar">⚡ Enviar siguiente ahora</button>
-              </div>
-              <div id="nextBox" class="rounded-xl border border-slate-200 p-3 text-[12.5px]"></div>
-              <p id="runHelp" class="text-[11px] text-slate-500 leading-relaxed"></p>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Cola del lote</div>
-            <div id="queue" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-1.5 max-h-64 overflow-y-auto scroll-thin pr-1"></div>
-          </div>
-        </div>
+    <!-- COLA PROGRAMADA -->
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="font-bold text-[15px]">Cola programada del lote</h2>
+        <span class="text-[11px] text-slate-400">Clic en el texto para verlo completo</span>
+      </div>
+      <div class="overflow-x-auto scroll-thin">
+        <table class="w-full text-[12px]">
+          <thead><tr class="text-left text-[10.5px] uppercase tracking-wide text-slate-500 border-b border-slate-200">
+            <th class="py-2 pr-2">#</th><th class="py-2 pr-2">Cliente</th><th class="py-2 pr-2">Hora programada</th><th class="py-2 pr-2 w-[45%]">Mensaje generado</th><th class="py-2 pr-2">Peso</th><th class="py-2 pr-2">Estado</th><th class="py-2"></th>
+          </tr></thead>
+          <tbody id="queue"></tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -257,11 +308,7 @@
         </div>
       </div>
     </div>
-
-    <div class="flex items-center justify-between mb-2 px-1">
-      <div id="crmSummary" class="text-[12px] text-slate-500"></div>
-    </div>
-
+    <div class="flex items-center justify-between mb-2 px-1"><div id="crmSummary" class="text-[12px] text-slate-500"></div></div>
     <div class="hidden xl:grid grid-cols-[minmax(240px,1.05fr)_minmax(380px,1.7fr)_minmax(300px,1.25fr)] gap-4 px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
       <div>Cliente</div><div>Estado contacto · Próxima acción</div><div>Datos de contacto · Observación</div>
     </div>
@@ -288,45 +335,67 @@ const ESTADOS = [
   { v: 'Primera compra efectuada', c: '#059669' },
 ];
 const ACCIONES = ['Activar recurrencia', 'Carterizar', 'Cerrar gestión', 'Contactar', 'Cotizar', 'Recontactar', 'Seguimiento cierre'];
-const DEFAULT_MSG = 'Hola, estimados de {razon_social} 👋\n\nLes saluda su asesor comercial. Queremos compartirles nuestras promociones vigentes de esta semana y conocer sus necesidades de compra.\n\n¿Les puedo enviar una cotización personalizada? (Código de cliente: {codigo_cliente})\n\n¡Quedo atento!';
-const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO'];
+const OLD_DEFAULT_MSG = 'Hola, estimados de {razon_social} 👋\n\nLes saluda su asesor comercial. Queremos compartirles nuestras promociones vigentes de esta semana y conocer sus necesidades de compra.\n\n¿Les puedo enviar una cotización personalizada? (Código de cliente: {codigo_cliente})\n\n¡Quedo atento!';
+const DEFAULT_TEMPLATES = [
+  '{Te escribo|Le escribo|Me comunico} de parte de {nuestro equipo comercial|tu asesor comercial} para {contarte|comentarte|compartirte} {las promociones vigentes|las ofertas de esta semana|nuestras novedades} {para|pensadas para} {{empresa}}.',
+  '{Quería|Queríamos} {saber cómo van|consultarte cómo están} {las compras|los pedidos} de {{empresa}} {este mes|estas semanas} y {si podemos apoyarte|si necesitas algo de nuestra parte} con {una cotización|precios especiales|stock disponible}.',
+  '{Tenemos|Contamos con} {precios especiales|condiciones preferentes|nuevas promociones} {para clientes como|pensadas para} {{empresa}}{ (cód. {{codigo}})|} y {me gustaría|quisiera} {enviártelas|compartírtelas} {sin compromiso|cuando te acomode}.',
+];
+const DEFAULT_BLOCKS = {
+  saludo: { label: 'Saludo inicial', prob: 90, items: '{Hola|Buen día|Buenos días|Qué tal} {{nombre}} 👋\n{Hola|Saludos}, {{nombre}}\n¡{Hola|Buen día}{ {{nombre}}|}!' },
+  pregunta: { label: 'Pregunta de cierre abierta', prob: 85, items: '¿{Te interesa|Te gustaría} que te {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} te {acomoda|viene bien} que lo {revisemos|conversemos}?' },
+  despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Buen día!|¡Que tengas buen día!|¡Éxitos!}' },
+};
+const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
+const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, fatMin: 6, fatMax: 10, brkMin: 4, brkMax: 10, mode: 'desborde', floor: 30 };
+const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion'];
 
 /* =========================================================
    ESTADO + PERSISTENCIA
    ========================================================= */
 function defaultState() {
   return {
-    version: 1,
-    clients: {},        // codigo -> {codigo, razon, telefono, addedAt}
-    clientOrder: [],    // orden de importación
-    lotes: [],          // {id, num, fecha(yyyy-mm-dd), createdAt, codigos[]}
-    gestion: {},        // codigo -> {loteId, enviado, fechaEnvio, msg, estado, accion, obs, nombre, correo, tel}
-    mensaje: DEFAULT_MSG,
-    settings: { intervalo: 5, variacion: true, destino: 'app' },
-    ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all' },
+    version: 2,
+    clients: {},        // codigo -> {codigo, razon, telefono, addedAt, extra:{slug:valor}}
+    clientOrder: [],
+    columns: [],        // [{slug, header}] columnas del Excel disponibles como {{variable}}
+    lotes: [],          // {id, num, fecha, createdAt, codigos[]}
+    gestion: {},        // codigo -> {loteId, enviado, fechaEnvio, estadoEnvio, gen{}, plan{}, sched, gestionAt, estado, accion, obs, nombre, correo, tel}
+    templates: DEFAULT_TEMPLATES.map((text) => ({ text, on: true })),
+    blocks: JSON.parse(JSON.stringify(DEFAULT_BLOCKS)),
+    fallbacks: DEFAULT_FALLBACKS,
+    cad: { ...DEFAULT_CAD },
+    run: { dirty: false },
+    settings: { destino: 'app' },
+    ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all', tpl: 0 },
   };
 }
+function migrate(d) {
+  const base = defaultState();
+  const s = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) }, cad: { ...base.cad, ...(d.cad || {}) }, run: { ...base.run, ...(d.run || {}) } };
+  if (!Array.isArray(d.templates) || d.templates.length < 3) {
+    s.templates = base.templates;
+    if (d.mensaje && d.mensaje.trim() && d.mensaje !== OLD_DEFAULT_MSG) s.templates[0] = { text: d.mensaje, on: true };
+  }
+  if (!d.blocks) s.blocks = base.blocks;
+  for (const k of Object.keys(DEFAULT_BLOCKS)) if (!s.blocks[k]) s.blocks[k] = JSON.parse(JSON.stringify(DEFAULT_BLOCKS[k]));
+  if (!Array.isArray(s.columns)) s.columns = [];
+  if (!Array.isArray(s.clientOrder) || (!s.clientOrder.length && Object.keys(s.clients || {}).length)) s.clientOrder = Object.keys(s.clients || {});
+  delete s.mensaje;
+  for (const g of Object.values(s.gestion || {})) if (!g.estadoEnvio) g.estadoEnvio = g.enviado ? 'Enviado' : 'Pendiente';
+  return s;
+}
 function loadState() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return defaultState();
-    const d = JSON.parse(raw), base = defaultState();
-    return { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) } };
-  } catch (e) { console.error(e); return defaultState(); }
+  try { const raw = localStorage.getItem(LS_KEY); return raw ? migrate(JSON.parse(raw)) : defaultState(); }
+  catch (e) { console.error(e); return defaultState(); }
 }
 let S = loadState();
 let saveTimer = null;
 function save(immediate) {
   clearTimeout(saveTimer);
   const doIt = () => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(S));
-      setSaveIndicator(true);
-    } catch (e) {
-      console.error(e);
-      setSaveIndicator(false);
-      toast('No se pudo guardar (almacenamiento lleno). Descarga un respaldo.', 'error');
-    }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(S)); setSaveIndicator(true); }
+    catch (e) { console.error(e); setSaveIndicator(false); toast('No se pudo guardar (almacenamiento lleno). Descarga un respaldo.', 'error'); }
   };
   if (immediate) doIt(); else saveTimer = setTimeout(doIt, 150);
 }
@@ -346,11 +415,15 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pad = n => String(n).padStart(2, '0');
-function todayKey(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function todayKey(d = new Date()) { d = new Date(d); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function fmtDateKey(k) { const [y, m, d] = k.split('-'); return `${d}/${m}/${y}`; }
-function fmtDateTime(ts) { if (!ts) return ''; const d = new Date(ts); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-function fmtTime(ts) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function fmtDateTime(ts, secs) { if (!ts) return ''; const d = new Date(ts); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}${secs ? ':' + pad(d.getSeconds()) : ''}`; }
+function fmtTime(ts, secs) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}${secs ? ':' + pad(d.getSeconds()) : ''}`; }
+const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+function fmtWhen(ts) { const same = todayKey(ts) === todayKey(); const d = new Date(ts); return same ? fmtTime(ts, true) : `${DIAS[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${fmtTime(ts, true)}`; }
+function fmtDur(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${pad(h)}:${pad(m)}:${pad(x)}` : `${pad(m)}:${pad(x)}`; }
 function normKey(h) { return String(h ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function slug(h) { return String(h ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''); }
 function normalizePhone(v) {
   let d = String(v ?? '').trim();
   if (/e\+/i.test(d) && !isNaN(Number(d))) d = Number(d).toFixed(0);
@@ -364,8 +437,12 @@ const validEmail = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 function fmtPhone(p) { return p && p.length === 11 && p.startsWith('51') ? `+51 ${p.slice(2, 5)} ${p.slice(5, 8)} ${p.slice(8)}` : (p ? '+' + p : '—'); }
 function loteById(id) { return S.lotes.find(l => l.id === id); }
 function loteLabel(l) { return l ? `Lote #${l.num} - ${fmtDateKey(l.fecha)}` : ''; }
-function personalize(tpl, c) { return tpl.replace(/\{codigo_cliente\}/g, c.codigo).replace(/\{razon_social\}/g, c.razon); }
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+const rnd = (a, b) => a + Math.random() * (b - a);
+const rndInt = (a, b) => Math.floor(rnd(Math.min(a, b), Math.max(a, b) + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const byteSize = t => new Blob([t]).size;
+const charCount = t => [...t].length;
 function download(name, content, mime) {
   const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
@@ -388,19 +465,17 @@ function toast(msg, type = 'ok', ms = 2200) {
 }
 
 /* =========================================================
-   VENTANA ÚNICA DE WHATSAPP
+   APERTURA DE WHATSAPP (app de la PC o web)
    ========================================================= */
 let waWin = null;
 const isApp = () => S.settings.destino !== 'web';
-// Lanza el protocolo whatsapp:// (abre la app instalada en la PC) sin cambiar de página
 function triggerProtocol(url) {
   const a = document.createElement('a'); a.href = url; a.style.display = 'none';
   document.body.appendChild(a); a.click(); a.remove();
 }
-// Lanzamiento automático (sin clic): confirma que la app tomó el foco; si no, devuelve false
 function launchAppAuto(url) {
   return new Promise((resolve) => {
-    if (!document.hasFocus()) { triggerProtocol(url); resolve(true); return; } // la PC ya está en otra ventana: no se puede verificar
+    if (!document.hasFocus()) { triggerProtocol(url); resolve(true); return; }
     let done = false;
     const finish = (ok) => { if (done) return; done = true; window.removeEventListener('blur', onBlur); document.removeEventListener('visibilitychange', onBlur); resolve(ok); };
     const onBlur = () => finish(true);
@@ -409,15 +484,9 @@ function launchAppAuto(url) {
     setTimeout(() => finish(false), 2500);
   });
 }
-/** Abre el chat. gesture=true cuando viene de un clic del usuario. */
 async function openWA(url, gesture = false) {
-  if (isApp()) {
-    if (gesture) { triggerProtocol(url); return true; }
-    return launchAppAuto(url);
-  }
-  try {
-    if (waWin && !waWin.closed) { waWin.location.href = url; try { waWin.focus(); } catch (e) {} return true; }
-  } catch (e) { /* referencia perdida */ }
+  if (isApp()) { if (gesture) { triggerProtocol(url); return true; } return launchAppAuto(url); }
+  try { if (waWin && !waWin.closed) { waWin.location.href = url; try { waWin.focus(); } catch (e) {} return true; } } catch (e) {}
   const w = window.open(url, WA_WINDOW);
   if (w) { waWin = w; return true; }
   return false;
@@ -425,19 +494,208 @@ async function openWA(url, gesture = false) {
 const waSendUrl = (phone, text) => (isApp() ? `whatsapp://send?phone=${phone}` : `https://web.whatsapp.com/send?phone=${phone}`) + (text != null ? `&text=${encodeURIComponent(text)}` : '');
 
 /* =========================================================
+   MOTOR DE TEXTO: variables + Spintax + bloques rotativos
+   ========================================================= */
+const VAR_ALIAS = { empresa: 'razon', razon_social: 'razon', razonsocial: 'razon', cliente: 'razon', codigo: 'codigo', codigo_cliente: 'codigo', codigo_de_cliente: 'codigo', telefono: 'telefono', numero: 'telefono', numero_de_contacto: 'telefono', celular: 'telefono', nombre: 'nombre', nombre_del_contacto: 'nombre', contacto: 'nombre' };
+function fallbackMap() {
+  const m = {};
+  String(S.fallbacks || '').split('\n').forEach(l => { const i = l.indexOf('='); if (i > 0) m[slug(l.slice(0, i))] = l.slice(i + 1).trim(); });
+  return m;
+}
+function varValue(name, c, g, fb) {
+  const k = slug(name), a = VAR_ALIAS[k], ex = c.extra || {};
+  let v = '';
+  if (a === 'razon') v = c.razon;
+  else if (a === 'codigo') v = c.codigo;
+  else if (a === 'telefono') v = c.telefono;
+  else if (a === 'nombre') v = (g && g.nombre) || ex.nombre || ex.nombre_del_contacto || ex.contacto || '';
+  if (!String(v ?? '').trim()) v = ex[k] ?? '';
+  v = String(v ?? '').replace(/\s+/g, ' ').trim();
+  if (!v) v = (fb || fallbackMap())[k] ?? '';
+  return v;
+}
+function isKnownVar(x) {
+  const k = slug(x);
+  return /^[\w\sáéíóúñ]+$/i.test(x) && !!k && (k in VAR_ALIAS || S.columns.some(c => c.slug === k) || k in fallbackMap());
+}
+/** Resuelve {{variables}}, {a|b|c} anidado y variables antiguas {razon_social}. Devuelve {text, path}. */
+function renderSpintax(tpl, c, g, fb) {
+  const vals = [], lits = [], path = [];
+  let s = String(tpl).replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (_, n) => { vals.push(varValue(n, c, g, fb)); return `\u0001${vals.length - 1}\u0002`; });
+  const re = /\{([^{}]*)\}/;
+  let m, guard = 0;
+  while ((m = re.exec(s)) && guard++ < 5000) {
+    const inner = m[1]; let rep;
+    if (inner.includes('|')) { const opts = inner.split('|'); const i = Math.floor(Math.random() * opts.length); path.push(i); rep = opts[i]; }
+    else if (isKnownVar(inner)) { vals.push(varValue(inner, c, g, fb)); rep = `\u0001${vals.length - 1}\u0002`; }
+    else { lits.push(m[0]); rep = `\u0003${lits.length - 1}\u0004`; }
+    s = s.slice(0, m.index) + rep + s.slice(m.index + m[0].length);
+  }
+  s = s.replace(/\u0003(\d+)\u0004/g, (_, i) => lits[i]).replace(/\u0001(\d+)\u0002/g, (_, i) => vals[i]);
+  return { text: s, path: path.join('.') };
+}
+function tidy(t) {
+  return t.split('\n').map(l => l.replace(/[ \t]+/g, ' ').replace(/\s+([,.;:!?)])/g, '$1').replace(/([¡¿(])\s+/g, '$1').replace(/,\s*,+/g, ',').replace(/^\s*[,;:]\s*/, '').replace(/¡\s*!/g, '').trim())
+    .join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+function activeTemplates() { return S.templates.map((t, i) => ({ ...t, i })).filter(t => t.on !== false && t.text.trim()); }
+/** Genera un mensaje único. avoid = mensaje del contacto anterior (no se repite plantilla ni combinación). */
+function composeMessage(c, g, avoid) {
+  const tpls = activeTemplates();
+  if (!tpls.length) return { text: '', bytes: 0, chars: 0, tpl: -1, combo: '', at: Date.now() };
+  const fb = fallbackMap();
+  let res = null;
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const pool = avoid && tpls.length > 1 ? tpls.filter(t => t.i !== avoid.tpl) : tpls;
+    const t = pick(pool);
+    const keys = [`T${t.i}`];
+    const block = (name) => {
+      const b = S.blocks[name]; const items = String(b?.items || '').split('\n').map(x => x.trim()).filter(Boolean);
+      if (!items.length || Math.random() * 100 >= (Number(b.prob) || 0)) { keys.push(name[0] + '-'); return ''; }
+      const ii = Math.floor(Math.random() * items.length); const r = renderSpintax(items[ii], c, g, fb);
+      keys.push(`${name[0]}${ii}:${r.path}`); return r.text;
+    };
+    const sal = block('saludo');
+    const body = renderSpintax(t.text, c, g, fb); keys.push('B' + body.path);
+    const pre = block('pregunta');
+    const des = block('despedida');
+    const sep = Math.random() < 0.5 ? '\n\n' : '\n';
+    keys.push(sep.length);
+    const text = tidy([sal, body.text, pre, des].filter(x => x && x.trim()).join(sep));
+    res = { text, tpl: t.i, combo: keys.join('|') };
+    if (!avoid || (res.combo !== avoid.combo && res.text !== avoid.text && (tpls.length < 2 || res.tpl !== avoid.tpl))) break;
+  }
+  res.bytes = byteSize(res.text); res.chars = charCount(res.text); res.at = Date.now();
+  return res;
+}
+
+/* =========================================================
+   MOTOR DE TIEMPO: jitter normal, escritura y fatiga
+   ========================================================= */
+function gaussian() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function humanGapMs() {
+  const a = Math.max(5, +S.cad.gapMin || 45), b = Math.max(a, +S.cad.gapMax || 180);
+  const mean = (a + b) / 2, sd = (b - a) / 5 || 1;
+  let x, n = 0;
+  do { x = mean + gaussian() * sd; } while ((x < a || x > b) && ++n < 25);
+  x = Math.min(b, Math.max(a, x));
+  return Math.round(x * 1000 + rnd(0, 999));
+}
+function typingMs(chars) { return Math.round(chars * rnd(+S.cad.typMin || 0, Math.max(+S.cad.typMin || 0, +S.cad.typMax || 0))); }
+function breakMs() { return Math.round(rnd(+S.cad.brkMin || 0, Math.max(+S.cad.brkMin || 0, +S.cad.brkMax || 0)) * 60000); }
+const fatigueEvery = () => rndInt(Math.max(1, +S.cad.fatMin || 6), Math.max(1, +S.cad.fatMax || 10));
+
+/* ---------- Ventana laboral ---------- */
+function hm(s) { const [h, m] = String(s || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); }
+function dayAt(ts, hhmm) { const d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime() + hm(hhmm) * 60000; }
+function isWorkday(ts) { const w = new Date(ts).getDay(); return (w >= 1 && w <= 5) || (w === 6 && S.cad.sabado); }
+function nextWindowStart(ts) {
+  if (isWorkday(ts) && ts < dayAt(ts, S.cad.start)) return dayAt(ts, S.cad.start);
+  const d = new Date(ts); d.setHours(12, 0, 0, 0);
+  for (let i = 0; i < 14; i++) { d.setDate(d.getDate() + 1); if (isWorkday(d.getTime())) return dayAt(d.getTime(), S.cad.start); }
+  return dayAt(d.getTime(), S.cad.start);
+}
+function windowAt(ts = Date.now()) {
+  const s = dayAt(ts, S.cad.start), e = dayAt(ts, S.cad.end);
+  if (isWorkday(ts) && ts >= s && ts < e) return { inside: true, start: s, end: e };
+  const n = nextWindowStart(ts);
+  return { inside: false, nextStart: n, start: n, end: dayAt(n, S.cad.end) };
+}
+
+/* =========================================================
+   PLANIFICADOR DEL LOTE
+   ========================================================= */
+function lotePending(l) { return l ? l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado) : []; }
+function loteSent(l) { return l ? l.codigos.filter(c => S.gestion[c]?.enviado).length : 0; }
+function lastSentOf(l) {
+  let best = null;
+  for (const c of l.codigos) { const g = S.gestion[c]; if (g?.enviado && g.gen && (!best || g.fechaEnvio > best.fechaEnvio)) best = g; }
+  return best;
+}
+/** Asegura textos únicos (sin repetir con el anterior en la cola) */
+function ensureTexts(l, regen) {
+  let prev = lastSentOf(l)?.gen || null;
+  for (const cod of lotePending(l)) {
+    const g = S.gestion[cod];
+    const clash = g.gen && prev && (g.gen.combo === prev.combo || g.gen.text === prev.text || (activeTemplates().length > 1 && g.gen.tpl === prev.tpl));
+    if (regen || !g.gen || !g.gen.text || clash) { g.gen = composeMessage(S.clients[cod], g, prev); g.plan = null; }
+    prev = g.gen;
+  }
+}
+/** Duraciones base por contacto: intervalo, escritura y descanso por fatiga */
+function ensurePlans(l, regen) {
+  // envíos desde el último descanso
+  const sent = l.codigos.map(c => S.gestion[c]).filter(g => g?.enviado).sort((a, b) => a.fechaEnvio - b.fechaEnvio);
+  let since = 0; for (const g of sent) { if (g.plan?.brk) since = 0; since++; }
+  let every = fatigueEvery();
+  for (const cod of lotePending(l)) {
+    const g = S.gestion[cod];
+    if (!regen && g.plan) { if (g.plan.brk) { since = 0; every = fatigueEvery(); } since++; continue; }
+    let brk = 0;
+    if (since >= every) { brk = breakMs(); since = 0; every = fatigueEvery(); }
+    g.plan = { gap: humanGapMs(), typ: typingMs(g.gen?.chars || 0), brk };
+    since++;
+  }
+}
+/** Asigna Hora Programada a cada pendiente, respetando la ventana laboral */
+function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) {
+  const l = getSendLote(); if (!l) { S.run.info = null; return null; }
+  ensureTexts(l, regenTexts);
+  ensurePlans(l, regenTimes);
+  const pend = lotePending(l).map(cod => ({ cod, g: S.gestion[cod] }));
+  const now = Date.now();
+  let t = Math.max(from ?? now, now);
+  let w = windowAt(t);
+  if (!w.inside) t = w.nextStart;
+  let curEnd = dayAt(t, S.cad.end);
+  const startT = t;
+  // Ajuste proporcional (solo para el día en curso)
+  let factor = 1;
+  const floorMs = Math.max(5, +S.cad.floor || 30) * 1000;
+  if (S.cad.mode === 'ajuste' && pend.length) {
+    // Busca el mayor factor (≤1) con el que el lote completo termina antes del cierre, sin bajar del piso
+    const avail = curEnd - t - 15000; // margen de seguridad antes del cierre
+    const total = (f) => pend.reduce((sum, x) => sum + x.g.plan.typ + Math.max(floorMs, x.g.plan.gap * f) + (x.g.plan.brk ? Math.max(60000, x.g.plan.brk * f) : 0), 0);
+    if (total(1) > avail) {
+      let lo = 0, hi = 1;
+      for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (total(mid) <= avail) lo = mid; else hi = mid; }
+      factor = lo;
+    }
+  }
+  let overflow = 0, todayCount = 0, todayEnd = null, firstDay = todayKey(t);
+  for (const { g } of pend) {
+    const sameDay = todayKey(t) === firstDay;
+    const f = sameDay ? factor : 1;
+    const gap = Math.max(floorMs, Math.round(g.plan.gap * f));
+    const brk = g.plan.brk ? Math.max(60000, Math.round(g.plan.brk * f)) : 0;
+    let restStart = t;
+    t += brk + gap + g.plan.typ;
+    if (t > curEnd) {
+      // Desborde: siguiente día hábil, desde la hora de inicio
+      const ns = nextWindowStart(curEnd);
+      restStart = ns; t = ns + Math.min(gap, 90000) + g.plan.typ;
+      curEnd = dayAt(ns, S.cad.end);
+    }
+    g.sched = t;
+    g.eff = { gap, brk, typ: g.plan.typ, restUntil: brk ? restStart + brk : 0 };
+    g.estadoEnvio = todayKey(t) > todayKey(now) ? 'Reprogramado' : 'Pendiente';
+    if (todayKey(t) === firstDay) { todayCount++; todayEnd = t; } else overflow++;
+  }
+  const hours = todayEnd ? (todayEnd - startT) / 3600000 : 0;
+  S.run.info = { start: startT, finish: pend.length ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now };
+  save();
+  return S.run.info;
+}
+
+/* =========================================================
    ESTADÍSTICAS
    ========================================================= */
 function stats() {
-  const total = S.clientOrder.length;
-  const assigned = Object.keys(S.gestion).length;
+  const total = S.clientOrder.length, assigned = Object.keys(S.gestion).length;
   let avail = 0, noPhone = 0;
-  for (const c of S.clientOrder) {
-    if (S.gestion[c]) continue;
-    if (validPhone(S.clients[c].telefono)) avail++; else noPhone++;
-  }
-  const sent = Object.values(S.gestion).filter(g => g.enviado).length;
-  const sentToday = Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio && todayKey(new Date(g.fechaEnvio)) === todayKey()).length;
-  return { total, assigned, avail, noPhone, sent, sentToday };
+  for (const c of S.clientOrder) { if (S.gestion[c]) continue; if (validPhone(S.clients[c]?.telefono)) avail++; else noPhone++; }
+  const all = Object.values(S.gestion);
+  return { total, assigned, avail, noPhone, sent: all.filter(g => g.enviado).length, sentToday: all.filter(g => g.enviado && todayKey(g.fechaEnvio) === todayKey()).length };
 }
 function renderStats() {
   const s = stats();
@@ -445,7 +703,7 @@ function renderStats() {
   $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
   $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
   $('#stAvailSub').textContent = s.noPhone ? `${s.noPhone} sin número válido` : (s.avail ? `≈ ${Math.ceil(s.avail / LOTE_SIZE)} lotes restantes` : 'sin pendientes');
-  $('#stTotalSub').textContent = `${S.lotes.length} lote(s) generados`;
+  $('#stTotalSub').textContent = `${S.lotes.length} lote(s) · ${S.columns.length} columnas`;
   $('#stSent').textContent = s.sent.toLocaleString('es-PE');
   $('#stSentSub').textContent = `${s.sentToday} hoy`;
 }
@@ -453,10 +711,7 @@ function renderStats() {
 /* =========================================================
    IMPORTAR EXCEL
    ========================================================= */
-function pickCol(keys, tests) {
-  for (const t of tests) { const i = keys.findIndex(t); if (i >= 0) return i; }
-  return -1;
-}
+function pickCol(keys, tests) { for (const t of tests) { const i = keys.findIndex(t); if (i >= 0) return i; } return -1; }
 function importWorkbook(wb) {
   let res = null;
   for (const name of wb.SheetNames) {
@@ -471,20 +726,25 @@ function importWorkbook(wb) {
     if (res) break;
   }
   if (!res) throw new Error('No se encontraron las columnas "Código de Cliente", "Razón Social" y "Número de Contacto".');
-  let added = 0, dup = 0, empty = 0, noPhone = 0;
+  const headers = res.rows[res.h].map(x => String(x ?? '').trim());
+  const slugs = headers.map(slug);
+  headers.forEach((hd, i) => { if (slugs[i] && !S.columns.some(c => c.slug === slugs[i])) S.columns.push({ slug: slugs[i], header: hd }); });
+  let added = 0, dup = 0, empty = 0, noPhone = 0, enriched = 0;
   const now = Date.now();
   for (let r = res.h + 1; r < res.rows.length; r++) {
     const row = res.rows[r];
     const codigo = String(row[res.iCod] ?? '').trim();
     if (!codigo) { empty++; continue; }
-    if (S.clients[codigo]) { dup++; continue; }
+    const extra = {};
+    slugs.forEach((sl, i) => { if (sl) { const v = row[i]; extra[sl] = v instanceof Date ? v.toLocaleDateString('es-PE') : String(v ?? '').trim(); } });
+    if (S.clients[codigo]) { S.clients[codigo].extra = { ...(S.clients[codigo].extra || {}), ...extra }; dup++; enriched++; continue; }
     const telefono = normalizePhone(row[res.iTel]);
     if (!validPhone(telefono)) noPhone++;
-    S.clients[codigo] = { codigo, razon: String(row[res.iRaz] ?? '').trim().replace(/\s+/g, ' '), telefono, addedAt: now };
+    S.clients[codigo] = { codigo, razon: String(row[res.iRaz] ?? '').trim().replace(/\s+/g, ' '), telefono, addedAt: now, extra };
     S.clientOrder.push(codigo);
     added++;
   }
-  return { added, dup, empty, noPhone };
+  return { added, dup, empty, noPhone, cols: headers.filter(Boolean).length };
 }
 function handleExcelFile(file) {
   if (!file) return;
@@ -492,12 +752,11 @@ function handleExcelFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      const r = importWorkbook(wb);
+      const r = importWorkbook(XLSX.read(new Uint8Array(e.target.result), { type: 'array' }));
       save(true); renderAll();
       const box = $('#importResult');
       box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-emerald-50 text-emerald-800 border border-emerald-200';
-      box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos agregados · ↩️ ${r.dup} duplicados omitidos` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '');
+      box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos · ↩️ ${r.dup} ya existían (sus columnas se actualizaron)<br>🧩 ${r.cols} columnas disponibles como variables` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '');
       toast(`${r.added} clientes nuevos importados`, 'success');
     } catch (err) {
       const box = $('#importResult');
@@ -512,23 +771,23 @@ function handleExcelFile(file) {
    LOTES
    ========================================================= */
 function generateLote() {
-  const pool = S.clientOrder.filter(c => !S.gestion[c] && validPhone(S.clients[c].telefono));
+  const pool = S.clientOrder.filter(c => !S.gestion[c] && validPhone(S.clients[c]?.telefono));
   if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
   const today = todayKey();
-  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + l.codigos.filter(c => !S.gestion[c]?.enviado).length, 0);
-  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes de envío en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
+  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
+  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
   const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
   const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos };
   S.lotes.push(lote);
-  for (const c of codigos) S.gestion[c] = { loteId: lote.id, enviado: false, fechaEnvio: null, msg: '', estado: '', accion: '', obs: '', nombre: '', correo: '', tel: '' };
+  for (const c of codigos) S.gestion[c] = { loteId: lote.id, enviado: false, fechaEnvio: null, estadoEnvio: 'Pendiente', gen: null, plan: null, sched: null, gestionAt: null, estado: '', accion: '', obs: '', nombre: '', correo: '', tel: '' };
   S.ui.sendLoteId = lote.id;
   S.ui.view = 'lote:' + lote.id;
-  resetRunner();
+  stopRunner();
+  planLote({ regenTexts: true, regenTimes: true });
+  S.run.dirty = false;
   save(true); renderAll();
-  toast(`${loteLabel(lote)} generado con ${codigos.length} contactos`, 'success');
+  toast(`${loteLabel(lote)}: ${codigos.length} contactos con texto y hora programada`, 'success', 3000);
 }
-function lotePending(l) { return l ? l.codigos.filter(c => !S.gestion[c]?.enviado) : []; }
-function loteSent(l) { return l ? l.codigos.filter(c => S.gestion[c]?.enviado).length : 0; }
 function getSendLote() {
   let l = loteById(S.ui.sendLoteId);
   if (!l && S.lotes.length) { l = S.lotes[S.lotes.length - 1]; S.ui.sendLoteId = l.id; }
@@ -537,15 +796,14 @@ function getSendLote() {
 function renderLotes() {
   const list = $('#loteList');
   $('#loteCount').textContent = S.lotes.length ? `${S.lotes.length} en total` : '';
-  if (!S.lotes.length) { list.innerHTML = '<div class="text-[12px] text-slate-400 text-center py-4">Aún no hay lotes generados.</div>'; }
+  if (!S.lotes.length) list.innerHTML = '<div class="text-[12px] text-slate-400 text-center py-4">Aún no hay lotes generados.</div>';
   else {
     const cur = S.ui.sendLoteId;
     list.innerHTML = S.lotes.slice().reverse().map(l => {
       const sent = loteSent(l), tot = l.codigos.length, pct = Math.round(sent / tot * 100);
-      const isToday = l.fecha === todayKey();
       return `<button data-lote="${l.id}" class="w-full text-left rounded-xl border px-3 py-2.5 transition ${l.id === cur ? 'border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-500/10' : 'border-slate-200 hover:bg-slate-50'}">
         <div class="flex items-center justify-between text-[13px]"><span class="font-semibold">${esc(loteLabel(l))}</span>
-        ${isToday ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">HOY</span>' : ''}</div>
+        ${l.fecha === todayKey() ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">HOY</span>' : ''}</div>
         <div class="flex items-center gap-2 mt-1.5"><div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${sent === tot ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
         <span class="text-[11px] text-slate-500 tabular-nums">${sent}/${tot}</span></div></button>`;
     }).join('');
@@ -556,55 +814,85 @@ function renderLotes() {
 }
 
 /* =========================================================
-   MENSAJE + VISTA PREVIA
+   EDITOR DE PLANTILLAS Y BLOQUES
    ========================================================= */
-function previewClient() {
+const curTpl = () => S.templates[Math.min(S.ui.tpl || 0, S.templates.length - 1)];
+function renderTemplates() {
+  if ((S.ui.tpl || 0) >= S.templates.length) S.ui.tpl = 0;
+  $('#tplTabs').innerHTML = S.templates.map((t, i) => `<button class="tpl-tab ${i === S.ui.tpl ? 'on' : ''} ${t.on === false ? 'off' : ''}" data-tpl="${i}">Plantilla ${i + 1}</button>`).join('');
+  $('#msg').value = curTpl().text;
+  $('#tplOn').checked = curTpl().on !== false;
+  $('#tplAdd').classList.toggle('hidden', S.templates.length >= 5);
+  $('#tplDel').classList.toggle('hidden', S.templates.length <= 3);
+  ltMatches = []; renderLT();
+}
+function renderVarChips() {
+  const base = ['nombre', 'empresa', 'codigo', 'telefono'];
+  const extra = S.columns.map(c => c.slug).filter(s => !base.includes(s) && !(s in VAR_ALIAS));
+  $('#varChips').innerHTML = [...base, ...extra].map(v => `<button class="btn btn-ghost !py-1 !px-2 !text-[11.5px]" data-ins="{{${esc(v)}}}">{{${esc(v)}}}</button>`).join('');
+}
+function renderBlocks() {
+  $('#blocksBox').innerHTML = Object.entries(S.blocks).map(([k, b]) => `
+    <div>
+      <div class="flex items-center justify-between mb-1"><span class="lbl !mb-0">${esc(b.label || k)}</span>
+        <span class="text-[11px] text-slate-500">Probabilidad <input type="number" min="0" max="100" class="inp !w-16 !py-0.5 !px-1.5 inline-block" data-blk-prob="${k}" value="${esc(b.prob)}">%</span></div>
+      <textarea rows="4" spellcheck="true" lang="es" class="inp font-mono !text-[12px]" data-blk="${k}">${esc(b.items)}</textarea>
+    </div>`).join('') + `
+    <div>
+      <span class="lbl">Valores de respaldo si la columna viene vacía (variable=valor)</span>
+      <textarea rows="4" class="inp font-mono !text-[12px]" id="fallbacks">${esc(S.fallbacks)}</textarea>
+      <p class="text-[11px] text-slate-500 mt-1">Si no hay respaldo, la variable se quita y se limpian espacios y comas sobrantes.</p>
+    </div>`;
+}
+function markDirty() {
   const l = getSendLote();
-  if (l && l.codigos.length) return S.clients[l.codigos[0]];
-  return { codigo: 'C00123', razon: 'EMPRESA DEMO S.A.C.' };
+  if (l && lotePending(l).length) { S.run.dirty = true; }
+  save(); renderPreview(); renderDirty();
 }
-function renderPreview() {
-  const c = previewClient();
-  $('#preview').textContent = personalize(S.mensaje, c) || '…';
-  $('#previewWho').textContent = `· ${c.codigo} // ${c.razon}`;
-  $('#charCount').textContent = `${S.mensaje.length} caracteres`;
-}
-function insertVar(v) {
+function renderDirty() { $('#dirtyBanner').classList.toggle('hidden', !S.run.dirty); }
+function insertAtCursor(v) {
   const ta = $('#msg'); const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? s;
   ta.value = ta.value.slice(0, s) + v + ta.value.slice(e);
-  ta.focus(); ta.selectionStart = ta.selectionEnd = s + v.length;
+  ta.focus(); ta.selectionStart = s + (v.startsWith('{opción') ? 1 : v.length); ta.selectionEnd = v.startsWith('{opción') ? s + 9 : ta.selectionStart;
   onMsgInput();
 }
-function onMsgInput() {
-  S.mensaje = $('#msg').value; save(); renderPreview(); renderNextBox();
-  if (ltMatches.length) { ltMatches = []; renderLT(); }
+function onMsgInput() { curTpl().text = $('#msg').value; if (ltMatches.length) { ltMatches = []; renderLT(); } markDirty(); }
+
+let previewSample = null;
+function previewTarget() {
+  const l = getSendLote(); const p = lotePending(l);
+  const cod = p[0] || (l && l.codigos[0]);
+  if (cod) return { c: S.clients[cod], g: S.gestion[cod] };
+  return { c: { codigo: 'C00123', razon: 'EMPRESA DEMO S.A.C.', telefono: '51999999999', extra: {} }, g: { nombre: 'Ana' } };
+}
+function renderPreview(newVariant) {
+  const { c, g } = previewTarget();
+  if (newVariant || !previewSample || previewSample.cod !== c.codigo || S.run.dirty) previewSample = { cod: c.codigo, gen: composeMessage(c, g, previewSample?.gen) };
+  const gen = (!newVariant && !S.run.dirty && g?.gen && !g.enviado) ? g.gen : previewSample.gen;
+  $('#preview').textContent = gen.text || '…';
+  $('#previewWho').textContent = `· ${c.codigo} // ${c.razon}`;
+  $('#previewMeta').innerHTML = `<b>${gen.bytes}</b> bytes · <b>${gen.chars}</b> caracteres · Plantilla ${gen.tpl + 1}`;
 }
 
-/* ---------- LanguageTool ---------- */
+/* ---------- LanguageTool sobre la plantilla activa ---------- */
 let ltMatches = [];
 async function ltCheck() {
   const text = $('#msg').value;
-  if (!text.trim()) { toast('Escribe un mensaje primero.', 'warn'); return; }
+  if (!text.trim()) { toast('Escribe la plantilla primero.', 'warn'); return; }
   const btn = $('#ltCheck'); btn.disabled = true; btn.textContent = '⏳ Revisando…';
   try {
-    const body = new URLSearchParams({ text, language: 'es' });
-    const r = await fetch('https://api.languagetool.org/v2/check', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+    const r = await fetch('https://api.languagetool.org/v2/check', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ text, language: 'es' }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const data = await r.json();
-    ltMatches = (data.matches || []).filter(m => {
-      const frag = text.substr(m.offset, m.length);
-      return !/[{}]/.test(frag) && !/^(codigo_cliente|razon_social)$/.test(frag);
-    }).map((m, i) => ({ id: i, offset: m.offset, length: m.length, original: text.substr(m.offset, m.length), message: m.message, short: m.shortMessage, reps: (m.replacements || []).slice(0, 4).map(x => x.value), type: m.rule?.issueType || '' }));
+    ltMatches = (data.matches || []).filter(m => !/[{}|]/.test(text.substr(m.offset, m.length)))
+      .map((m, i) => ({ id: i, offset: m.offset, length: m.length, original: text.substr(m.offset, m.length), message: m.message, reps: (m.replacements || []).slice(0, 4).map(x => x.value) }));
     renderLT(true);
-  } catch (e) {
-    toast('No se pudo conectar con LanguageTool. Usa el corrector del navegador (subrayado rojo).', 'error', 3500);
-  } finally { btn.disabled = false; btn.textContent = '✔️ Revisar ortografía y redacción'; }
+  } catch (e) { toast('No se pudo conectar con LanguageTool. Usa el corrector del navegador (subrayado rojo).', 'error', 3500); }
+  finally { btn.disabled = false; btn.textContent = '✔️ Revisar ortografía'; }
 }
 function renderLT(show) {
-  const panel = $('#ltPanel');
-  if (show) panel.classList.remove('hidden');
+  if (show) $('#ltPanel').classList.remove('hidden');
   const text = $('#msg').value;
-  // resaltado
   let html = '', pos = 0;
   for (const m of ltMatches.slice().sort((a, b) => a.offset - b.offset)) {
     if (m.offset < pos) continue;
@@ -613,7 +901,7 @@ function renderLT(show) {
   }
   $('#msgHighlight').innerHTML = html + esc(text.slice(pos)) + '\n';
   $('#msgHighlight').scrollTop = $('#msg').scrollTop;
-  $('#ltTitle').textContent = ltMatches.length ? `${ltMatches.length} sugerencia(s) encontradas` : '✅ Sin errores detectados';
+  $('#ltTitle').textContent = ltMatches.length ? `${ltMatches.length} sugerencia(s)` : '✅ Sin errores detectados';
   $('#ltTitle').className = 'text-[12px] font-semibold ' + (ltMatches.length ? 'text-rose-600' : 'text-emerald-600');
   $('#ltApplyAll').classList.toggle('hidden', !ltMatches.some(m => m.reps.length));
   $('#ltList').innerHTML = ltMatches.map(m => `
@@ -631,120 +919,111 @@ function ltApply(id, repIdx) {
   ta.value = text.slice(0, m.offset) + rep + text.slice(m.offset + m.length);
   const delta = rep.length - m.length;
   ltMatches = ltMatches.filter(x => x.id !== id).map(x => x.offset > m.offset ? { ...x, offset: x.offset + delta } : x);
-  S.mensaje = ta.value; save(); renderPreview(); renderNextBox(); renderLT();
+  curTpl().text = ta.value; markDirty(); renderLT();
 }
 function ltApplyAll() {
-  const ta = $('#msg'); let text = ta.value;
-  const sorted = ltMatches.filter(m => m.reps.length).sort((a, b) => b.offset - a.offset);
-  let n = 0;
-  for (const m of sorted) {
+  const ta = $('#msg'); let text = ta.value, n = 0;
+  for (const m of ltMatches.filter(m => m.reps.length).sort((a, b) => b.offset - a.offset)) {
     if (text.substr(m.offset, m.length) !== m.original) continue;
     text = text.slice(0, m.offset) + m.reps[0] + text.slice(m.offset + m.length); n++;
   }
   ta.value = text; ltMatches = ltMatches.filter(m => !m.reps.length);
-  S.mensaje = text; save(); renderPreview(); renderNextBox(); renderLT();
+  curTpl().text = text; markDirty(); renderLT();
   toast(`${n} corrección(es) aplicadas`, 'success');
 }
 
 /* =========================================================
-   CRONÓMETRO / ENVÍO PROGRAMADO
+   EJECUCIÓN (reloj, estados y disparo)
    ========================================================= */
-const R = { running: false, target: 0, remaining: null, timer: null, blocked: null };
-function intervalMs(withJitter = true) {
-  let ms = Math.max(0.5, Number(S.settings.intervalo) || 5) * 60000;
-  if (withJitter && S.settings.variacion) ms += Math.round((Math.random() * 40 - 20) * 1000);
-  return Math.max(10000, ms);
+const R = { running: false, timer: null, firing: false, blocked: null };
+function nextPending() { const l = getSendLote(); const p = lotePending(l); return p.length ? { cod: p[0], c: S.clients[p[0]], g: S.gestion[p[0]] } : null; }
+/** Estado actual de la jornada: activo · escribiendo · descanso · fuera · detenido · completo · esperando */
+function cadStatus(now = Date.now()) {
+  const n = nextPending();
+  if (!n) return { k: 'completo' };
+  if (R.blocked) return { k: 'esperando', n };
+  if (!R.running) return { k: 'detenido', n };
+  const w = windowAt(now);
+  if (!w.inside) return { k: 'fuera', n, until: w.nextStart };
+  const sched = n.g.sched || now;
+  if (sched > dayAt(now, S.cad.end)) return { k: 'fuera', n, until: sched };
+  if (n.g.eff?.restUntil && now < n.g.eff.restUntil) return { k: 'descanso', n, until: sched, restUntil: n.g.eff.restUntil };
+  if (now >= sched - (n.g.eff?.typ || 0)) return { k: 'escribiendo', n, until: sched };
+  return { k: 'activo', n, until: sched };
 }
-function msToClock(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`; }
 function startRunner() {
   const l = getSendLote();
   if (!l) { toast('Genera un lote primero.', 'warn'); return; }
   if (!lotePending(l).length) { toast('Este lote ya fue enviado por completo.', 'warn'); return; }
-  if (!S.mensaje.trim()) { toast('Redacta el mensaje antes de comenzar.', 'warn'); return; }
+  if (!activeTemplates().length) { toast('Activa al menos una plantilla con texto.', 'warn'); return; }
   if (R.running) return;
-  // Preabrir la ventana única (gesto del usuario) para evitar bloqueos de ventanas emergentes
   if (!isApp() && (!waWin || waWin.closed)) {
     const w = window.open('https://web.whatsapp.com/', WA_WINDOW);
-    if (w) { waWin = w; try { window.focus(); } catch (e) {} }
-    else toast('Permite ventanas emergentes para esta página.', 'warn', 3500);
+    if (w) { waWin = w; try { window.focus(); } catch (e) {} } else toast('Permite ventanas emergentes para esta página.', 'warn', 3500);
   }
+  const n0 = nextPending();
+  if (!n0.g.sched || n0.g.sched < Date.now()) planLote(); // solo reprograma si la hora ya pasó
   R.running = true;
-  R.target = Date.now() + (R.remaining ?? intervalMs());
-  R.remaining = null;
-  clearInterval(R.timer); R.timer = setInterval(tick, 250);
-  tick(); renderRunner();
-  toast('Envío programado iniciado', 'success');
+  clearInterval(R.timer); R.timer = setInterval(tick, 500);
+  tick(); renderAllRunner();
+  toast(windowAt().inside ? 'Cadencia iniciada' : 'Programado: espera la apertura de la jornada', 'success');
 }
-function pauseRunner() {
-  if (!R.running) return;
-  R.remaining = Math.max(0, R.target - Date.now());
-  R.running = false; clearInterval(R.timer); renderRunner();
-}
-function resetRunner() {
-  R.running = false; R.remaining = null; clearInterval(R.timer); hideBlocked(); renderRunner();
-}
+function stopRunner() { R.running = false; clearInterval(R.timer); hideBlocked(); renderAllRunner(); }
 function tick() {
-  if (!R.running) return;
-  if (!R.firing && Date.now() >= R.target) fireNext(false);
+  if (R.running && !R.firing && !R.blocked) {
+    const st = cadStatus();
+    if ((st.k === 'activo' || st.k === 'escribiendo') && Date.now() >= st.until) fireNext('auto');
+  }
   renderClock();
 }
-function nextContact() { const l = getSendLote(); const p = lotePending(l); return p.length ? S.clients[p[0]] : null; }
-async function fireNext(manual) {
+async function fireNext(mode) {
   if (R.firing) return;
   R.firing = true;
-  try { await fireNextInner(manual); } finally { R.firing = false; }
+  try {
+    const n = nextPending(); if (!n) { finishLote(); return; }
+    if (!n.g.gen?.text) planLote();
+    const msg = n.g.gen.text;
+    copyText(msg);
+    const ok = await openWA(waSendUrl(n.c.telefono, msg), mode === 'click');
+    if (!ok) { showBlocked(n); renderAllRunner(); return; }
+    afterSent(n.cod);
+  } finally { R.firing = false; }
 }
-async function fireNextInner(manual) {
-  const c = nextContact();
-  const l = getSendLote();
-  if (!c) { finishLote(); return; }
-  const msg = personalize(S.mensaje, c);
-  const url = waSendUrl(c.telefono, msg);
-  copyText(msg);
-  const ok = await openWA(url, manual === 'click' || manual === 'resume');
-  if (!ok) {
-    R.running = false; clearInterval(R.timer); R.remaining = null;
-    showBlocked(c, msg, url); renderRunner();
-    return;
-  }
-  markSent(c.codigo, msg);
+function afterSent(cod) {
+  markSent(cod);
   beep();
-  if (!lotePending(l).length) { finishLote(); return; }
-  if (R.running || manual === 'resume') { R.target = Date.now() + intervalMs(); if (!R.running) { R.running = true; clearInterval(R.timer); R.timer = setInterval(tick, 250); } }
-  renderRunner();
+  if (!lotePending(getSendLote()).length) { finishLote(); return; }
+  planLote({ from: Date.now() });
+  renderAllRunner();
 }
 function finishLote() {
-  R.running = false; R.remaining = null; clearInterval(R.timer);
-  renderRunner(); toast('🎉 Lote completado: todos los mensajes fueron abiertos.', 'success', 4000);
+  R.running = false; clearInterval(R.timer); hideBlocked();
+  if (S.run.info) S.run.info.finish = null;
+  renderAllRunner(); toast('🎉 Lote completado: todos los mensajes fueron abiertos.', 'success', 4000);
 }
-function markSent(codigo, msg) {
+function markSent(codigo) {
   const g = S.gestion[codigo]; if (!g) return;
-  g.enviado = true; g.fechaEnvio = Date.now(); g.msg = msg;
+  g.enviado = true; g.fechaEnvio = Date.now(); g.gestionAt = g.fechaEnvio; g.estadoEnvio = 'Enviado'; g.msg = g.gen?.text || '';
   save(true);
-  renderStats(); renderLotes(); renderQueue(); renderNextBox(); updateRowSent(codigo);
-  toast(`Mensaje abierto para ${codigo} — copiado al portapapeles`, 'success');
+  renderStats(); renderLotes(); updateRowSent(codigo);
+  toast(`Chat abierto: ${codigo} · mensaje copiado`, 'success');
 }
 let titleFlash = null;
-function showBlocked(c, msg, url) {
-  R.blocked = { c, msg, url };
-  $('#blockedWho').textContent = `${c.codigo} // ${c.razon}`;
+function showBlocked(n) {
+  R.blocked = n;
+  $('#blockedWho').textContent = `${n.c.codigo} // ${n.c.razon}`;
   $('#blockedBanner').classList.remove('hidden');
   beep(); setTimeout(beep, 350);
   clearInterval(titleFlash);
   let on = false; titleFlash = setInterval(() => { on = !on; document.title = on ? '🔔 ¡Abrir siguiente chat!' : 'Difusión WhatsApp CRM'; }, 900);
-  try { window.focus(); } catch (e) {}
 }
 function hideBlocked() { R.blocked = null; clearInterval(titleFlash); titleFlash = null; $('#blockedBanner').classList.add('hidden'); }
 async function resolveBlocked() {
   if (!R.blocked) return;
-  const { c, msg } = R.blocked;
-  copyText(msg);
-  if (await openWA(waSendUrl(c.telefono, msg), true)) {
-    hideBlocked(); markSent(c.codigo, msg);
-    if (lotePending(getSendLote()).length) { R.running = true; R.target = Date.now() + intervalMs(); clearInterval(R.timer); R.timer = setInterval(tick, 250); }
-    else finishLote();
-    renderRunner();
-  } else toast('El navegador bloqueó la ventana: permite ventanas emergentes en la barra de direcciones.', 'error', 4000);
+  const n = R.blocked;
+  copyText(n.g.gen.text);
+  if (await openWA(waSendUrl(n.c.telefono, n.g.gen.text), true)) { hideBlocked(); afterSent(n.cod); }
+  else toast('El navegador bloqueó la ventana: permite ventanas emergentes.', 'error', 4000);
 }
 let audioCtx;
 function beep() {
@@ -755,54 +1034,106 @@ function beep() {
     o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.26);
   } catch (e) {}
 }
+const ST_UI = {
+  activo: ['🟢 En horario activo', 'bg-emerald-100 text-emerald-700', 'para el siguiente contacto'],
+  escribiendo: ['✍️ Simulando escritura', 'bg-sky-100 text-sky-700', 'para abrir el chat'],
+  descanso: ['☕ En pausa por descanso', 'bg-amber-100 text-amber-700', 'de descanso restante'],
+  fuera: ['🌙 Pausado · Fuera de horario laboral', 'bg-indigo-100 text-indigo-700', 'hasta la apertura de la jornada'],
+  esperando: ['🔔 Esperando tu clic', 'bg-emerald-200 text-emerald-800 animate-pulse', 'abre el chat con el botón verde'],
+  detenido: ['⏹ Detenido', 'bg-slate-200 text-slate-600', 'pulsa Comenzar'],
+  completo: ['✓ Lote completado', 'bg-emerald-100 text-emerald-700', 'sin pendientes'],
+};
 function renderClock() {
-  let ms;
-  if (R.running) ms = R.target - Date.now();
-  else if (R.remaining != null) ms = R.remaining;
-  else ms = intervalMs(false);
-  const clock = msToClock(ms);
+  const now = Date.now(), st = cadStatus(now), ui = ST_UI[st.k];
+  let ms = null;
+  if (st.k === 'descanso') ms = st.restUntil - now;
+  else if (st.until) ms = st.until - now;
+  else if (st.k === 'detenido' && st.n?.g.sched) ms = st.n.g.sched - now;
+  const clock = ms != null ? fmtDur(ms) : '--:--';
+  $('#cadState').textContent = ui[0]; $('#cadState').className = 'text-[12px] font-bold px-3 py-1 rounded-full ' + ui[1];
   $('#countdown').textContent = clock;
-  $('#runPillTxt').textContent = clock;
+  $('#countdown').className = 'font-bold tabular-nums tracking-tight my-2 ' + (clock.length > 5 ? 'text-4xl ' : 'text-5xl ') + (R.running ? 'text-indigo-600' : 'text-slate-800');
+  $('#countdownLbl').textContent = st.k === 'detenido' && ms != null ? 'según la hora programada (detenido)' : ui[2];
+  const pill = $('#runPill');
+  if (R.running || R.blocked) { pill.className = 'hidden md:flex items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full ' + ui[1]; pill.textContent = `${ui[0].split(' ')[0]} ${clock}`; }
+  else pill.className = 'hidden';
   if (!titleFlash) document.title = R.running ? `⏱ ${clock} · Difusión CRM` : 'Difusión WhatsApp CRM';
 }
-function renderRunner() {
-  const l = getSendLote();
+function renderKpis() {
+  const l = getSendLote(), info = S.run.info, pend = lotePending(l).length;
   const sent = loteSent(l), tot = l ? l.codigos.length : 0;
   $('#progTxt').textContent = `${sent}/${tot}`;
   $('#progBar').style.width = tot ? `${(sent / tot) * 100}%` : '0%';
-  const st = $('#runState');
-  if (R.running) { st.textContent = '● En ejecución'; st.className = 'text-[12px] font-semibold text-emerald-600'; }
-  else if (R.blocked) { st.textContent = '⚠ Esperando acción'; st.className = 'text-[12px] font-semibold text-amber-600'; }
-  else if (R.remaining != null) { st.textContent = '⏸ En pausa'; st.className = 'text-[12px] font-semibold text-amber-600'; }
-  else { st.textContent = tot && sent === tot ? '✓ Lote completado' : 'Detenido'; st.className = 'text-[12px] font-semibold ' + (tot && sent === tot ? 'text-emerald-600' : 'text-slate-500'); }
-  $('#countdown').className = 'text-5xl font-bold tabular-nums tracking-tight my-1 ' + (R.running ? 'text-indigo-600' : 'text-slate-800');
+  $('#kPend').textContent = pend;
+  $('#kWin').textContent = `${S.cad.start}–${S.cad.end}`;
+  $('#kRate').textContent = pend && info?.rate ? `${info.rate.toFixed(1)}/h` : '—';
+  const finish = pend && info ? info.finish : null;
+  $('#kEnd').textContent = finish ? fmtWhen(finish) : '—';
+  $('#kEnd').className = 'font-bold tabular-nums ' + (finish && fmtWhen(finish).length > 8 ? 'text-[14px] text-amber-700' : 'text-xl');
+  const box = $('#fitBox');
+  if (!l || !pend || !info) { box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600'; box.textContent = l ? '✓ Sin contactos pendientes en este lote.' : 'Genera un lote para calcular la programación.'; }
+  else {
+    const fuera = todayKey(info.start) !== todayKey() ? ` La jornada de hoy ya cerró o no es día hábil: inicia el ${fmtWhen(info.start)}.` : '';
+    if (!info.overflow) {
+      box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-emerald-50 border border-emerald-200 text-emerald-800';
+      box.innerHTML = `✓ El lote <b>cabe en la jornada</b>: ${info.todayCount} contactos, cierre estimado <b>${fmtWhen(info.todayEnd)}</b>.` + (info.factor < 1 ? ` Intervalos ajustados al <b>${Math.round(info.factor * 100)}%</b> (piso ${S.cad.floor} s).` : '') + fuera;
+    } else {
+      box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-amber-50 border border-amber-200 text-amber-800';
+      box.innerHTML = `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
+    }
+  }
   $('#btnStart').disabled = R.running;
   $('#btnPause').disabled = !R.running;
-  $('#btnStart').innerHTML = R.remaining != null ? '▶ Reanudar' : '▶ Comenzar';
-  $('#runPill').className = (R.running ? 'hidden md:flex' : 'hidden') + ' items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700';
-  renderClock();
 }
 function renderNextBox() {
-  const c = nextContact(), l = getSendLote();
-  const box = $('#nextBox');
+  const n = nextPending(), l = getSendLote(), box = $('#nextBox');
   if (!l) { box.innerHTML = '<span class="text-slate-400">Genera o selecciona un lote para empezar.</span>'; return; }
-  if (!c) { box.innerHTML = '<span class="text-emerald-700 font-semibold">✓ Todos los contactos de este lote ya fueron enviados.</span>'; return; }
-  box.innerHTML = `<div class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold mb-1">Siguiente contacto</div>
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1"><span class="font-semibold">${esc(c.codigo)} // ${esc(c.razon)}</span><span class="text-slate-500 tabular-nums">${esc(fmtPhone(c.telefono))}</span></div>`;
+  if (!n) { box.innerHTML = '<span class="text-emerald-700 font-semibold">✓ Todos los contactos de este lote ya fueron abiertos.</span>'; return; }
+  const p = n.g.eff || {};
+  box.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1"><span class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Siguiente</span>
+    <span class="font-semibold">${esc(n.c.codigo)} // ${esc(n.c.razon)}</span><span class="text-slate-500 tabular-nums">${esc(fmtPhone(n.c.telefono))}</span>
+    <span class="ml-auto text-[11.5px] text-slate-500 tabular-nums">⏰ ${n.g.sched ? fmtWhen(n.g.sched) : '—'}</span></div>
+    <div class="text-[11px] text-slate-500 mt-1 tabular-nums">Intervalo ${Math.round((p.gap || 0) / 1000)} s · escritura ${Math.round((p.typ || 0) / 1000)} s${p.brk ? ` · <b class="text-amber-700">descanso ${Math.round(p.brk / 60000)} min antes</b>` : ''} · ${n.g.gen?.bytes || 0} B</div>`;
 }
+const estadoBadge = g => g.enviado ? `<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✓ Enviado ${fmtTime(g.fechaEnvio)}</span>`
+  : g.estadoEnvio === 'Reprogramado' ? '<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">↪ Reprogramado</span>'
+  : '<span class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pendiente</span>';
 function renderQueue() {
-  const l = getSendLote(); const q = $('#queue');
-  if (!l) { q.innerHTML = '<div class="text-[12px] text-slate-400">—</div>'; return; }
+  const l = getSendLote(), q = $('#queue');
+  if (!l) { q.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">Sin lote seleccionado</td></tr>'; return; }
   const nextCod = lotePending(l)[0];
   q.innerHTML = l.codigos.map((cod, i) => {
-    const c = S.clients[cod], g = S.gestion[cod] || {};
-    const isNext = cod === nextCod;
-    return `<div class="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[12px] ${g.enviado ? 'row-sent' : isNext ? 'border-indigo-300 bg-indigo-50' : 'border-slate-200'}">
-      <span class="w-5 text-[10px] text-slate-400 tabular-nums">${i + 1}</span>
-      <span class="truncate flex-1"><b>${esc(cod)}</b> · ${esc(c?.razon)}</span>
-      ${g.enviado ? `<span class="text-[10px] font-bold text-emerald-700">✓ ${fmtTime(g.fechaEnvio)}</span>` : isNext ? '<span class="text-[10px] font-bold text-indigo-600">SIGUIENTE</span>' : ''}
-    </div>`;
+    const c = S.clients[cod], g = S.gestion[cod] || {}, gen = g.gen || {};
+    const cls = g.enviado ? 'row-sent' : cod === nextCod ? 'row-next' : '';
+    const when = g.enviado ? fmtWhen(g.fechaEnvio) : (g.sched ? fmtWhen(g.sched) : '—');
+    return `<tr class="border-b border-slate-100 align-top ${cls}" data-qrow="${esc(cod)}">
+      <td class="py-2 pr-2 text-slate-400 tabular-nums">${i + 1}</td>
+      <td class="py-2 pr-2 min-w-[150px]"><b class="text-indigo-700">${esc(cod)}</b><div class="text-slate-600 leading-tight">${esc(c?.razon)}</div></td>
+      <td class="py-2 pr-2 tabular-nums whitespace-nowrap">${esc(when)}${g.eff?.brk && !g.enviado ? '<div class="text-[10px] text-amber-700">☕ tras descanso</div>' : ''}</td>
+      <td class="py-2 pr-2 min-w-[240px]"><div class="clamp2 whitespace-pre-wrap cursor-pointer text-slate-700" data-expand title="Clic para ver completo">${esc(gen.text || '—')}</div></td>
+      <td class="py-2 pr-2 tabular-nums whitespace-nowrap"><b>${gen.bytes || 0}</b> B<div class="text-[10.5px] text-slate-500">${gen.chars || 0} car. · P${(gen.tpl ?? -1) + 1}</div></td>
+      <td class="py-2 pr-2">${estadoBadge(g)}</td>
+      <td class="py-2 text-right">${g.enviado ? '' : `<button class="text-[11.5px] font-semibold text-indigo-600 hover:underline whitespace-nowrap" data-regen="${esc(cod)}">↻ Regenerar</button>`}</td>
+    </tr>`;
   }).join('');
+}
+function renderAllRunner() { renderKpis(); renderNextBox(); renderQueue(); renderClock(); renderDirty(); }
+function regenOne(cod) {
+  const l = getSendLote(), g = S.gestion[cod]; if (!g || g.enviado) return;
+  const loteOf = loteById(g.loteId) || l;
+  const idx = loteOf.codigos.indexOf(cod);
+  const prev = S.gestion[loteOf.codigos[idx - 1]]?.gen || null, next = S.gestion[loteOf.codigos[idx + 1]]?.gen || null;
+  let gen;
+  for (let i = 0; i < 20; i++) {
+    gen = composeMessage(S.clients[cod], g, prev);
+    if (gen.text === g.gen?.text) continue;
+    if (!next || (gen.combo !== next.combo && gen.text !== next.text && (activeTemplates().length < 3 || gen.tpl !== next.tpl))) break;
+  }
+  g.gen = gen;
+  if (g.plan) g.plan.typ = typingMs(gen.chars);
+  if (loteOf.id === S.ui.sendLoteId) planLote({ from: R.running ? Date.now() : null });
+  save(); renderAllRunner(); renderPreview(); refreshCrmRow(cod);
+  toast(`Nuevo texto para ${cod}: ${gen.bytes} bytes`, 'ok');
 }
 
 /* =========================================================
@@ -817,47 +1148,42 @@ function viewCodigos(view = S.ui.view) {
   return [];
 }
 function filteredCodigos() {
-  const q = normKey($('#search').value);
-  const qDigits = $('#search').value.replace(/\D/g, '');
-  const f = S.ui.sentFilter;
+  const q = normKey($('#search').value), qDigits = $('#search').value.replace(/\D/g, ''), f = S.ui.sentFilter;
   return viewCodigos().filter(cod => {
     const c = S.clients[cod], g = S.gestion[cod]; if (!c || !g) return false;
     if (f === 'sent' && !g.enviado) return false;
     if (f === 'pending' && g.enviado) return false;
     if (!q) return true;
     if (normKey(c.codigo).includes(q) || normKey(c.razon).includes(q) || normKey(g.nombre).includes(q)) return true;
-    if (qDigits.length >= 3 && (c.telefono.includes(qDigits) || (g.tel || '').replace(/\D/g, '').includes(qDigits))) return true;
-    return false;
+    return qDigits.length >= 3 && (c.telefono.includes(qDigits) || (g.tel || '').replace(/\D/g, '').includes(qDigits));
   });
 }
 function renderViewSelect() {
-  const sel = $('#viewSel');
-  const today = todayKey();
-  const todayCount = viewCodigos('today').length;
+  const sel = $('#viewSel'), today = todayKey();
   const dates = [...new Set(S.lotes.map(l => l.fecha))].sort().reverse();
-  let html = `<option value="today">📅 Lote de hoy (${todayCount})</option>`;
+  let html = `<option value="today">📅 Lote de hoy (${viewCodigos('today').length})</option>`;
   html += `<optgroup label="Lotes">` + S.lotes.slice().reverse().map(l => `<option value="lote:${l.id}">${esc(loteLabel(l))}${l.fecha === today ? ' · hoy' : ''} (${loteSent(l)}/${l.codigos.length} enviados)</option>`).join('') + `</optgroup>`;
   if (dates.length > 1) html += `<optgroup label="Por fecha">` + dates.map(d => `<option value="date:${d}">Todos del ${fmtDateKey(d)}</option>`).join('') + `</optgroup>`;
   html += `<option value="all">🗂️ Historial completo (${Object.keys(S.gestion).length})</option>`;
   sel.innerHTML = html;
-  const valid = [...sel.options].some(o => o.value === S.ui.view);
-  if (!valid) S.ui.view = 'today';
+  if (![...sel.options].some(o => o.value === S.ui.view)) S.ui.view = 'today';
   sel.value = S.ui.view;
   $$('#sentFilter button').forEach(b => { const on = b.dataset.f === S.ui.sentFilter; b.className = (b.dataset.f !== 'all' ? 'border-l border-slate-200 ' : '') + 'px-3 py-2 ' + (on ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
 }
-function chipEstado(cod, g) {
-  return ESTADOS.map(e => {
-    const on = g.estado === e.v;
-    return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="estado" data-val="${esc(e.v)}" style="${on ? `background:${e.c}` : ''}">${esc(e.v)}</button>`;
-  }).join('');
-}
-function chipAccion(cod, g) {
-  return ACCIONES.map(a => {
-    const on = g.accion === a;
-    return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="accion" data-val="${esc(a)}" style="${on ? 'background:#4F46E5' : ''}">${esc(a)}</button>`;
-  }).join('');
-}
+function chipEstado(cod, g) { return ESTADOS.map(e => { const on = g.estado === e.v; return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="estado" data-val="${esc(e.v)}" style="${on ? `background:${e.c}` : ''}">${esc(e.v)}</button>`; }).join(''); }
+function chipAccion(cod, g) { return ACCIONES.map(a => { const on = g.accion === a; return `<button class="chip ${on ? 'on' : ''}" data-cod="${esc(cod)}" data-kind="accion" data-val="${esc(a)}" style="${on ? 'background:#4F46E5' : ''}">${esc(a)}</button>`; }).join(''); }
 function emailClass(v) { return !v ? '' : validEmail(v) ? 'good' : 'bad'; }
+function msgStrip(cod) {
+  const g = S.gestion[cod], gen = g.gen || {};
+  const when = g.enviado ? `✓ ${fmtWhen(g.fechaEnvio)}` : g.sched ? `⏰ ${fmtWhen(g.sched)}` : '';
+  return `<div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+      <span class="font-semibold text-slate-600">💬 Mensaje generado</span>
+      <span class="tabular-nums"><b class="text-slate-700">${gen.bytes || 0}</b> bytes · ${gen.chars || 0} caracteres · Plantilla ${(gen.tpl ?? -1) + 1}</span>
+      <span class="tabular-nums">${esc(when)}</span>${g.estadoEnvio === 'Reprogramado' && !g.enviado ? '<span class="text-amber-700 font-semibold">↪ Reprogramado</span>' : ''}
+      ${g.enviado ? '' : `<button class="ml-auto font-semibold text-indigo-600 hover:underline" data-regen="${esc(cod)}">↻ Regenerar</button>`}
+    </div>
+    <div class="clamp2 whitespace-pre-wrap text-[12px] text-slate-700 mt-1 cursor-pointer" data-expand>${esc(gen.text || 'Aún sin texto: se genera al planificar el lote.')}</div>`;
+}
 function rowHtml(cod) {
   const c = S.clients[cod], g = S.gestion[cod], l = loteById(g.loteId);
   return `<div class="card px-4 py-3 ${g.enviado ? 'row-sent' : ''}" data-row="${esc(cod)}">
@@ -889,25 +1215,23 @@ function rowHtml(cod) {
         <input class="inp col-span-2" data-cod="${esc(cod)}" data-field="obs" value="${esc(g.obs)}" placeholder="Observación…">
       </div>
     </div>
+    <div class="mt-2.5 pt-2 border-t border-dashed border-slate-200" data-msgstrip>${msgStrip(cod)}</div>
   </div>`;
 }
 function sentBadge(g) {
   return g.enviado
-    ? `<button data-toggle-sent class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white" title="Clic para desmarcar">✓ Enviado ${fmtDateTime(g.fechaEnvio).slice(0, 10) === fmtDateTime(Date.now()).slice(0, 10) ? fmtTime(g.fechaEnvio) : fmtDateTime(g.fechaEnvio)}</button>`
-    : `<button data-toggle-sent class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200" title="Marcar como enviado manualmente">Pendiente</button>`;
+    ? `<button data-toggle-sent class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white" title="Clic para desmarcar">✓ Enviado ${todayKey(g.fechaEnvio) === todayKey() ? fmtTime(g.fechaEnvio) : fmtDateTime(g.fechaEnvio)}</button>`
+    : `<button data-toggle-sent class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${g.estadoEnvio === 'Reprogramado' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'} hover:bg-slate-200" title="Marcar como enviado manualmente">${g.estadoEnvio === 'Reprogramado' ? '↪ Reprogramado' : 'Pendiente'}</button>`;
 }
 function renderCRM(resetLimit) {
   if (resetLimit) crmLimit = 60;
   renderViewSelect();
-  const cods = filteredCodigos();
-  const list = $('#crmList'), empty = $('#crmEmpty');
-  const viewAll = viewCodigos();
-  const sentInView = viewAll.filter(c => S.gestion[c]?.enviado).length;
-  const tipified = viewAll.filter(c => S.gestion[c]?.estado).length;
+  const cods = filteredCodigos(), list = $('#crmList'), empty = $('#crmEmpty'), viewAll = viewCodigos();
+  const sentInView = viewAll.filter(c => S.gestion[c]?.enviado).length, tipified = viewAll.filter(c => S.gestion[c]?.estado).length;
   $('#crmSummary').innerHTML = `Mostrando <b>${Math.min(cods.length, crmLimit)}</b> de <b>${cods.length}</b> · <span class="text-emerald-600 font-semibold">${sentInView} enviados</span> · ${tipified} tipificados de ${viewAll.length}`;
   if (!cods.length) {
     list.innerHTML = ''; empty.classList.remove('hidden');
-    empty.innerHTML = !S.lotes.length ? '📭 Aún no hay lotes. Ve a <b>Campaña y envío</b>, carga tu Excel y genera el primer lote de 30.' : S.ui.view === 'today' && !viewAll.length ? '📅 No hay lote generado hoy. Elige un lote anterior o el historial completo en el selector.' : '🔎 Sin resultados para este filtro.';
+    empty.innerHTML = !S.lotes.length ? '📭 Aún no hay lotes. Ve a <b>Campaña y envío</b>, carga tu Excel y genera el primer lote de 30.' : S.ui.view === 'today' && !viewAll.length ? '📅 No hay lote generado hoy. Elige un lote anterior o el historial completo.' : '🔎 Sin resultados para este filtro.';
     $('#crmMore').classList.add('hidden'); return;
   }
   empty.classList.add('hidden');
@@ -915,12 +1239,13 @@ function renderCRM(resetLimit) {
   $('#crmMore').classList.toggle('hidden', cods.length <= crmLimit);
 }
 function updateRowSent(cod) {
-  const row = document.querySelector(`[data-row="${CSS.escape(cod)}"]`);
-  if (!row) return;
+  const row = document.querySelector(`[data-row="${CSS.escape(cod)}"]`); if (!row) return;
   const g = S.gestion[cod];
   row.classList.toggle('row-sent', !!g.enviado);
   $('[data-sentbadge]', row).innerHTML = sentBadge(g);
+  $('[data-msgstrip]', row).innerHTML = msgStrip(cod);
 }
+function refreshCrmRow(cod) { const row = document.querySelector(`[data-row="${CSS.escape(cod)}"]`); if (row) $('[data-msgstrip]', row).innerHTML = msgStrip(cod); }
 
 /* =========================================================
    EXPORTACIONES
@@ -930,9 +1255,11 @@ function exportRows(cods) {
     const c = S.clients[cod] || {}, g = S.gestion[cod] || {};
     return {
       'Código de Cliente': c.codigo, 'Razón Social': c.razon, 'Número de Contacto': c.telefono,
-      'Estado Envío': g.enviado ? 'Enviado' : 'Pendiente', 'Fecha y Hora Envío': g.enviado ? fmtDateTime(g.fechaEnvio) : '',
+      'Estado Envío': g.enviado ? 'Enviado' : (g.estadoEnvio || 'Pendiente'), 'Fecha y Hora Envío': g.enviado ? fmtDateTime(g.fechaEnvio) : '',
       'Lote': loteLabel(loteById(g.loteId)), 'ESTADO CONTACTO': g.estado || '', 'PRÓXIMA ACCIÓN': g.accion || '',
       'OBSERVACIÓN': g.obs || '', 'NOMBRE DEL CONTACTO': g.nombre || '', 'CORREO': g.correo || '', 'TELÉFONO': g.tel || '',
+      'Mensaje_Generado': g.gen?.text || g.msg || '', 'Peso_Bytes': g.gen?.bytes ?? (g.msg ? byteSize(g.msg) : ''),
+      'Hora_Programada': g.sched ? fmtDateTime(g.sched, true) : '', 'Fecha_Hora_Gestion': g.gestionAt ? fmtDateTime(g.gestionAt, true) : '',
     };
   });
 }
@@ -941,7 +1268,7 @@ function exportExcel(scope) {
   const cods = scope === 'all' ? S.lotes.flatMap(l => l.codigos) : viewCodigos();
   if (!cods.length) { toast('No hay registros para exportar.', 'warn'); return; }
   const ws = XLSX.utils.json_to_sheet(exportRows(cods), { header: EXPORT_COLS });
-  ws['!cols'] = [14, 38, 15, 12, 17, 22, 28, 20, 40, 24, 28, 15].map(w => ({ wch: w }));
+  ws['!cols'] = [14, 38, 15, 13, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20].map(w => ({ wch: w }));
   ws['!autofilter'] = { ref: ws['!ref'] };
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, scope === 'all' ? 'Historial' : 'Lote');
@@ -957,14 +1284,13 @@ function exportVcf() {
   const cods = viewCodigos();
   if (!cods.length) { toast('Selecciona un lote con contactos.', 'warn'); return; }
   const out = cods.map(cod => {
-    const c = S.clients[cod], g = S.gestion[cod] || {};
-    const name = `${c.codigo} // ${c.razon}`;
+    const c = S.clients[cod], g = S.gestion[cod] || {}, name = `${c.codigo} // ${c.razon}`;
     const lines = ['BEGIN:VCARD', 'VERSION:3.0', `FN:${vEsc(name)}`, `N:;${vEsc(name)};;;`, `ORG:${vEsc(c.razon)}`, `TEL;TYPE=CELL:+${c.telefono}`];
     const extra = normalizePhone(g.tel); if (validPhone(extra) && extra !== c.telefono) lines.push(`TEL;TYPE=WORK:+${extra}`);
     if (g.correo && validEmail(g.correo)) lines.push(`EMAIL:${vEsc(g.correo)}`);
     lines.push('END:VCARD'); return lines.join('\r\n');
   }).join('\r\n');
-  let name = 'contactos';
+  let name;
   if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `contactos_lote${l.num}_${l.fecha}`; }
   else name = `contactos_${S.ui.view.replace(':', '_')}_${todayKey()}`;
   download(name + '.vcf', out + '\r\n', 'text/vcard;charset=utf-8');
@@ -974,10 +1300,7 @@ function exportVcf() {
 /* =========================================================
    RESPALDO
    ========================================================= */
-function exportBackup() {
-  download(`respaldo_difusion_crm_${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json');
-  toast('Respaldo descargado', 'success');
-}
+function exportBackup() { download(`respaldo_difusion_crm_${todayKey()}.json`, JSON.stringify(S, null, 1), 'application/json'); toast('Respaldo descargado', 'success'); }
 function importBackup(file) {
   const r = new FileReader();
   r.onload = e => {
@@ -985,10 +1308,7 @@ function importBackup(file) {
       const d = JSON.parse(e.target.result);
       if (!d || typeof d !== 'object' || !d.clients || !Array.isArray(d.lotes) || !d.gestion) throw new Error('Formato no válido');
       if (!confirm(`¿Restaurar este respaldo?\n${Object.keys(d.clients).length} clientes · ${d.lotes.length} lotes.\nSe reemplazarán los datos actuales.`)) return;
-      const base = defaultState();
-      S = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) } };
-      if (!Array.isArray(S.clientOrder) || !S.clientOrder.length) S.clientOrder = Object.keys(S.clients);
-      resetRunner(); save(true); syncInputs(); renderAll();
+      stopRunner(); S = migrate(d); save(true); syncInputs(); renderAll();
       toast('Respaldo restaurado', 'success');
     } catch (err) { toast('No se pudo restaurar: ' + err.message, 'error', 3500); }
   };
@@ -1006,30 +1326,27 @@ function setTab(t) {
   if (t === 'crm') renderCRM(true);
 }
 function syncInputs() {
-  $('#msg').value = S.mensaje;
-  $('#interval').value = S.settings.intervalo;
-  $('#jitter').checked = !!S.settings.variacion;
+  $$('[data-cad]').forEach(el => {
+    const k = el.dataset.cad, v = S.cad[k];
+    if (el.type === 'checkbox') el.checked = !!v; else if (el.type === 'radio') el.checked = el.value === v; else el.value = v;
+  });
+  renderTemplates(); renderBlocks(); renderVarChips();
 }
 function renderDest() {
   const app = isApp();
-  $$('#destSel button').forEach((b) => { const on = b.dataset.dest === (app ? 'app' : 'web'); b.className = (b.dataset.dest === 'web' ? 'border-l border-slate-200 ' : '') + 'px-3 py-1.5 ' + (on ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
+  $$('#destSel button').forEach(b => { const on = b.dataset.dest === (app ? 'app' : 'web'); b.className = (b.dataset.dest === 'web' ? 'border-l border-slate-200 ' : '') + 'px-3 py-1.5 ' + (on ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
   $('#btnTestApp').classList.toggle('hidden', !app);
   $('#destHelp').innerHTML = app
-    ? 'Abre el chat directamente en la aplicación <b>WhatsApp instalada en tu PC</b>, con el mensaje ya escrito. <b>Primera vez:</b> pulsa <b>🔓 Activar apertura directa</b>; el navegador preguntará <i>“¿Abrir WhatsApp?”</i> → marca <b>“Permitir siempre…”</b> y pulsa <b>Abrir</b>. Desde ahí ya no vuelve a preguntar.'
+    ? 'Abre cada chat en la <b>app WhatsApp de tu PC</b> con su mensaje único ya escrito; tú solo presionas <b>Enter</b>. <b>Primera vez:</b> pulsa 🔓 y en el aviso del navegador marca <b>“Permitir siempre…”</b>. Si el navegador no deja abrirla sola, suena un aviso y aparece el botón verde: un clic y continúa.'
     : 'Abre WhatsApp Web en una única pestaña reutilizable. Permite ventanas emergentes para esta página.';
-  $('#runHelp').innerHTML = app
-    ? 'Al llegar a 00:00 se copia el mensaje y se abre el chat en la app de WhatsApp; solo presiona <b>Enviar</b> (Enter). Si el navegador no deja abrirla solo (pasa cuando no has tocado esta página desde el último envío), suena un aviso y aparece el botón verde <b>💬 Abrir en WhatsApp</b>: un clic y continúa.'
-    : 'Al llegar a 00:00 se copia el mensaje y se abre WhatsApp Web con el texto listo; solo presiona <b>Enviar</b>. Deja esta pestaña abierta.';
 }
 function renderAll() {
-  renderDest();
-  renderStats(); renderLotes(); renderPreview(); renderRunner(); renderNextBox(); renderQueue();
+  renderDest(); renderStats(); renderLotes(); renderVarChips(); renderPreview(); renderAllRunner();
   if (S.ui.tab === 'crm') renderCRM(true);
 }
 
-// Tabs
+// Tabs y menús
 $$('.tab-btn').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
-// Backup menu
 $('#backupBtn').addEventListener('click', e => { e.stopPropagation(); $('#backupMenu').classList.toggle('hidden'); });
 $('#dlXlsBtn').addEventListener('click', e => { e.stopPropagation(); $('#dlXlsMenu').classList.toggle('hidden'); });
 document.addEventListener('click', () => { $('#backupMenu').classList.add('hidden'); $('#dlXlsMenu').classList.add('hidden'); });
@@ -1039,9 +1356,9 @@ $('#bkFile').addEventListener('change', e => { if (e.target.files[0]) importBack
 $('#bkWipe').addEventListener('click', () => {
   if (!confirm('¿Borrar TODOS los datos (clientes, lotes y gestiones)?\nTe recomendamos descargar un respaldo antes.')) return;
   if (prompt('Escribe BORRAR para confirmar') !== 'BORRAR') return;
-  resetRunner(); S = defaultState(); save(true); syncInputs(); renderAll(); setTab('campana'); toast('Datos eliminados');
+  stopRunner(); S = defaultState(); save(true); syncInputs(); renderAll(); setTab('campana'); toast('Datos eliminados');
 });
-// Excel import
+// Excel
 $('#xlsFile').addEventListener('change', e => { handleExcelFile(e.target.files[0]); e.target.value = ''; });
 const dz = $('#dropZone');
 ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-400', 'bg-indigo-50'); }));
@@ -1049,20 +1366,29 @@ const dz = $('#dropZone');
 dz.addEventListener('drop', e => handleExcelFile(e.dataTransfer.files[0]));
 // Lotes
 $('#genLote').addEventListener('click', generateLote);
-$('#loteList').addEventListener('click', e => {
-  const b = e.target.closest('[data-lote]'); if (!b) return;
-  if (R.running && b.dataset.lote !== S.ui.sendLoteId && !confirm('Hay un envío en curso. ¿Cambiar de lote? (se pausará)')) return;
-  if (b.dataset.lote !== S.ui.sendLoteId) resetRunner();
-  S.ui.sendLoteId = b.dataset.lote; save(); renderAll();
-});
-$('#sendLote').addEventListener('change', e => {
-  if (R.running && !confirm('Hay un envío en curso. ¿Cambiar de lote? (se pausará)')) { e.target.value = S.ui.sendLoteId; return; }
-  resetRunner(); S.ui.sendLoteId = e.target.value; save(); renderAll();
-});
-// Message
+function switchLote(id) {
+  if (id === S.ui.sendLoteId) return;
+  if (R.running && !confirm('Hay una cadencia en curso. ¿Cambiar de lote? (se detendrá)')) { renderLotes(); return; }
+  stopRunner(); S.ui.sendLoteId = id; planLote(); save(); renderAll();
+}
+$('#loteList').addEventListener('click', e => { const b = e.target.closest('[data-lote]'); if (b) switchLote(b.dataset.lote); });
+$('#sendLote').addEventListener('change', e => switchLote(e.target.value));
+// Plantillas
 $('#msg').addEventListener('input', onMsgInput);
 $('#msg').addEventListener('scroll', () => { $('#msgHighlight').scrollTop = $('#msg').scrollTop; });
-$$('[data-var]').forEach(b => b.addEventListener('click', () => insertVar(b.dataset.var)));
+$('#tplTabs').addEventListener('click', e => { const b = e.target.closest('[data-tpl]'); if (!b) return; S.ui.tpl = +b.dataset.tpl; save(); renderTemplates(); });
+$('#tplOn').addEventListener('change', e => {
+  if (!e.target.checked && activeTemplates().length <= 1) { e.target.checked = true; toast('Debe quedar al menos una plantilla activa.', 'warn'); return; }
+  curTpl().on = e.target.checked; renderTemplates(); markDirty();
+});
+$('#tplAdd').addEventListener('click', () => { if (S.templates.length >= 5) return; S.templates.push({ text: '', on: true }); S.ui.tpl = S.templates.length - 1; renderTemplates(); markDirty(); $('#msg').focus(); });
+$('#tplDel').addEventListener('click', () => {
+  if (S.templates.length <= 3) return;
+  if (!confirm(`¿Eliminar la Plantilla ${S.ui.tpl + 1}?`)) return;
+  S.templates.splice(S.ui.tpl, 1); S.ui.tpl = 0; renderTemplates(); markDirty();
+});
+document.addEventListener('click', e => { const b = e.target.closest('[data-ins]'); if (b) insertAtCursor(b.dataset.ins); });
+$('#btnVariant').addEventListener('click', () => renderPreview(true));
 $('#ltCheck').addEventListener('click', ltCheck);
 $('#ltClose').addEventListener('click', () => { ltMatches = []; renderLT(); $('#ltPanel').classList.add('hidden'); });
 $('#ltApplyAll').addEventListener('click', ltApplyAll);
@@ -1070,28 +1396,49 @@ $('#ltList').addEventListener('click', e => {
   const b = e.target.closest('[data-lt]'); if (b) return ltApply(+b.dataset.lt, +b.dataset.rep);
   const ig = e.target.closest('[data-lt-ignore]'); if (ig) { ltMatches = ltMatches.filter(m => m.id !== +ig.dataset.ltIgnore); renderLT(); }
 });
-// Scheduler
-$('#interval').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v > 0) { S.settings.intervalo = v; save(); if (!R.running && R.remaining == null) renderClock(); } });
-$('#jitter').addEventListener('change', e => { S.settings.variacion = e.target.checked; save(); });
+$('#blocksBox').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.blk) S.blocks[t.dataset.blk].items = t.value;
+  else if (t.dataset.blkProb) S.blocks[t.dataset.blkProb].prob = Math.max(0, Math.min(100, +t.value || 0));
+  else if (t.id === 'fallbacks') S.fallbacks = t.value;
+  else return;
+  markDirty();
+});
+// Motor de cadencia
+const TIME_KEYS = ['gapMin', 'gapMax', 'typMin', 'typMax', 'fatMin', 'fatMax', 'brkMin', 'brkMax'];
+let cadT;
+$$('[data-cad]').forEach(el => el.addEventListener('change', () => {
+  const k = el.dataset.cad;
+  if (el.type === 'checkbox') S.cad[k] = el.checked;
+  else if (el.type === 'radio') { if (!el.checked) return; S.cad[k] = el.value; }
+  else if (el.type === 'number') { const v = parseFloat(el.value); if (isNaN(v)) { el.value = S.cad[k]; return; } S.cad[k] = v; }
+  else { if (!/^\d{2}:\d{2}$/.test(el.value)) { el.value = S.cad[k]; return; } S.cad[k] = el.value; }
+  if (hm(S.cad.end) <= hm(S.cad.start)) { toast('La hora de fin debe ser posterior a la de inicio.', 'warn'); }
+  clearTimeout(cadT);
+  cadT = setTimeout(() => { planLote({ regenTimes: TIME_KEYS.includes(k), from: null }); save(); renderAllRunner(); }, 200);
+}));
+$$('[data-recalc]').forEach(b => b.addEventListener('click', () => {
+  const l = getSendLote(); if (!l || !lotePending(l).length) { toast('No hay pendientes que recalcular.', 'warn'); return; }
+  if (!confirm(`¿Regenerar textos y tiempos de ${lotePending(l).length} contacto(s) pendiente(s)?\nLos ya enviados no cambian.`)) return;
+  planLote({ regenTexts: true, regenTimes: true }); S.run.dirty = false; previewSample = null;
+  save(true); renderAllRunner(); renderPreview();
+  toast('Programación y textos recalculados', 'success');
+}));
+// Ejecución
 $('#btnStart').addEventListener('click', startRunner);
-$('#btnPause').addEventListener('click', pauseRunner);
-$('#btnReset').addEventListener('click', () => { resetRunner(); toast('Cronómetro reiniciado'); });
+$('#btnPause').addEventListener('click', () => { stopRunner(); toast('Cadencia en pausa'); });
 $('#btnNow').addEventListener('click', () => {
-  const l = getSendLote();
-  if (!l || !lotePending(l).length) { toast('No hay contactos pendientes en este lote.', 'warn'); return; }
-  if (!S.mensaje.trim()) { toast('Redacta el mensaje primero.', 'warn'); return; }
-  const wasRunning = R.running;
-  fireNext(wasRunning ? 'resume' : 'click');
+  if (!nextPending()) { toast('No hay contactos pendientes en este lote.', 'warn'); return; }
+  if (!windowAt().inside && !confirm('Estás fuera del horario laboral. ¿Abrir el siguiente chat de todos modos?')) return;
+  fireNext('click');
 });
 $('#blockedOpen').addEventListener('click', resolveBlocked);
-$('#destSel').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-dest]'); if (!b) return;
-  S.settings.destino = b.dataset.dest; save(); renderDest(); if (S.ui.tab === 'crm') renderCRM();
+$('#queue').addEventListener('click', e => {
+  const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
+  const ex = e.target.closest('[data-expand]'); if (ex) ex.classList.toggle('open');
 });
-$('#btnTestApp').addEventListener('click', () => {
-  triggerProtocol('whatsapp://');
-  toast('Si el navegador pregunta, marca “Permitir siempre” y pulsa Abrir.', 'ok', 5000);
-});
+$('#destSel').addEventListener('click', e => { const b = e.target.closest('[data-dest]'); if (!b) return; S.settings.destino = b.dataset.dest; save(); renderDest(); if (S.ui.tab === 'crm') renderCRM(); });
+$('#btnTestApp').addEventListener('click', () => { triggerProtocol('whatsapp://'); toast('Si el navegador pregunta, marca “Permitir siempre” y pulsa Abrir.', 'ok', 5000); });
 
 // CRM
 $('#viewSel').addEventListener('change', e => { S.ui.view = e.target.value; save(); renderCRM(true); });
@@ -1101,54 +1448,52 @@ $('#crmMoreBtn').addEventListener('click', () => { crmLimit += 60; renderCRM(); 
 $('#dlVcf').addEventListener('click', exportVcf);
 $('#dlXlsView').addEventListener('click', () => exportExcel('view'));
 $('#dlXlsAll').addEventListener('click', () => exportExcel('all'));
-
 $('#crmList').addEventListener('click', async e => {
   const chip = e.target.closest('.chip');
   if (chip) {
     const { cod, kind, val } = chip.dataset; const g = S.gestion[cod]; if (!g) return;
-    g[kind] = g[kind] === val ? '' : val; save();
-    const grp = chip.closest('[data-group]');
-    grp.innerHTML = kind === 'estado' ? chipEstado(cod, g) : chipAccion(cod, g);
+    g[kind] = g[kind] === val ? '' : val; g.gestionAt = Date.now(); save();
+    chip.closest('[data-group]').innerHTML = kind === 'estado' ? chipEstado(cod, g) : chipAccion(cod, g);
     return;
   }
+  const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
+  const ex = e.target.closest('[data-expand]'); if (ex) { ex.classList.toggle('open'); return; }
   const cp = e.target.closest('[data-copy]');
   if (cp) {
     const c = S.clients[cp.dataset.copy];
-    if (await copyText(`${c.codigo} // ${c.razon}`)) {
-      toast('Copiado'); cp.classList.add('!text-emerald-600', '!border-emerald-400');
-      setTimeout(() => cp.classList.remove('!text-emerald-600', '!border-emerald-400'), 900);
-    } else toast('No se pudo copiar', 'error');
+    if (await copyText(`${c.codigo} // ${c.razon}`)) { toast('Copiado'); cp.classList.add('!text-emerald-600', '!border-emerald-400'); setTimeout(() => cp.classList.remove('!text-emerald-600', '!border-emerald-400'), 900); }
+    else toast('No se pudo copiar', 'error');
     return;
   }
   const wa = e.target.closest('[data-wa]');
-  if (wa) {
-    e.preventDefault();
-    if (!(await openWA(wa.href, true))) toast('Permite ventanas emergentes para esta página.', 'warn');
-    return;
-  }
+  if (wa) { e.preventDefault(); if (!(await openWA(wa.href, true))) toast('Permite ventanas emergentes para esta página.', 'warn'); return; }
   const ts = e.target.closest('[data-toggle-sent]');
   if (ts) {
     const cod = ts.closest('[data-row]').dataset.row, g = S.gestion[cod];
-    if (g.enviado) { if (!confirm('¿Desmarcar este contacto como enviado? Volverá a la cola de envío.')) return; g.enviado = false; g.fechaEnvio = null; }
-    else { g.enviado = true; g.fechaEnvio = Date.now(); }
-    save(true); updateRowSent(cod); renderStats(); renderLotes(); renderQueue(); renderNextBox(); renderRunner();
+    if (g.enviado) { if (!confirm('¿Desmarcar este contacto como enviado? Volverá a la cola de envío.')) return; g.enviado = false; g.fechaEnvio = null; g.estadoEnvio = 'Pendiente'; }
+    else { g.enviado = true; g.fechaEnvio = Date.now(); g.estadoEnvio = 'Enviado'; }
+    g.gestionAt = Date.now();
+    if (g.loteId === S.ui.sendLoteId) planLote({ from: R.running ? Date.now() : null });
+    save(true); updateRowSent(cod); renderStats(); renderLotes(); renderAllRunner();
   }
 });
 $('#crmList').addEventListener('input', e => {
   const inp = e.target.closest('[data-field]'); if (!inp) return;
   const g = S.gestion[inp.dataset.cod]; if (!g) return;
-  g[inp.dataset.field] = inp.value; save();
+  g[inp.dataset.field] = inp.value; g.gestionAt = Date.now(); save();
   if (inp.dataset.field === 'correo') { inp.classList.remove('good', 'bad'); const cl = emailClass(inp.value.trim()); if (cl) inp.classList.add(cl); }
 });
 
-// Re-render del CRM cuando el contenido cambia desde otra pestaña del navegador
 window.addEventListener('storage', e => { if (e.key === LS_KEY && e.newValue && !R.running) { S = loadState(); syncInputs(); renderAll(); } });
-// Recalcular el reloj al volver a la pestaña
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+// Reloj visible aunque esté detenido (cuenta regresiva / estado de jornada)
+setInterval(() => { if (!R.running) renderClock(); }, 1000);
 
 // INIT
 syncInputs();
 setTab(S.ui.tab || 'campana');
+// Al recargar se conserva la programación guardada; solo se recalcula si falta o ya venció
+{ const l0 = getSendLote(), n0 = l0 && nextPending(); if (n0 && (!n0.g.sched || !n0.g.gen || n0.g.sched < Date.now())) planLote(); }
 renderAll();
 </script>
 </body>
