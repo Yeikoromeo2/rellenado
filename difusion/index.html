@@ -6,6 +6,7 @@
 <title>Difusión WhatsApp CRM</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
   tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } } };
 </script>
@@ -111,6 +112,7 @@
         <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat con su mensaje único.</span>
         <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
       </div>
+      <div id="healthBanner" class="hidden mb-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-3 text-[13px]"></div>
       <div id="dirtyBanner" class="hidden mb-3 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[12.5px] flex flex-wrap items-center gap-2">
         <span>✏️ Cambiaste plantillas o bloques. Los mensajes pendientes aún usan la versión anterior.</span>
         <button class="btn btn-ghost !py-1 !text-[12px] ml-auto" data-recalc>Recalcular tiempos y textos</button>
@@ -127,11 +129,12 @@
           </div>
         </div>
         <div class="md:col-span-8 flex flex-col gap-3">
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Pendientes</div><div id="kPend" class="text-xl font-bold">0</div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Ritmo prom.</div><div id="kRate" class="text-xl font-bold">—</div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Cierre proyectado</div><div id="kEnd" class="text-xl font-bold tabular-nums">—</div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Jornada</div><div id="kWin" class="text-xl font-bold tabular-nums">09:00–18:00</div></div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2" title="Contactos que pidieron no recibir más mensajes en los últimos 7 días, sobre los enviados en ese periodo"><div class="lbl">Bajas 7 días</div><div id="kBajas" class="text-xl font-bold tabular-nums">0%</div></div>
           </div>
           <div id="fitBox" class="rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600">—</div>
           <div class="flex flex-wrap gap-2">
@@ -176,6 +179,26 @@
           <button id="genLote" class="btn btn-primary w-full">🎲 Generar nuevo lote de 30 al azar</button>
           <p class="text-[11px] text-slate-500 mt-2">Toma solo contactos nunca asignados y les genera texto y hora programada.</p>
           <div id="loteList" class="mt-3 space-y-2 max-h-[300px] overflow-y-auto scroll-thin pr-1"></div>
+        </div>
+
+        <div class="card p-4">
+          <h2 class="font-bold text-[15px] mb-1">Buenas prácticas y protección</h2>
+          <p class="text-[11.5px] text-slate-500 mb-3">Lo que realmente protege tu número: permiso del cliente, poca frecuencia y una salida fácil.</p>
+          <div class="space-y-3 text-[12.5px]">
+            <div class="flex items-center gap-2 flex-wrap">Máx. 1 mensaje por número cada <input type="number" min="0" class="inp !w-16" data-pol="freqDays"> días</div>
+            <div class="flex items-center gap-2 flex-wrap">Tope diario de envíos <input type="number" min="0" class="inp !w-20" data-pol="dailyCap"> <span class="text-[11px] text-slate-400">(0 = sin tope)</span></div>
+            <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="consentOnly"> <span>Solo contactar clientes con <b>consentimiento registrado</b> <span id="consentInfo" class="text-[11px] text-slate-400"></span></span></label>
+            <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="salida"> <span>Incluir en cada mensaje la opción de salida (<i>"responde BAJA"</i>)</span></label>
+            <div class="flex items-center gap-2 flex-wrap">Pausar si las bajas superan <input type="number" min="0" step="0.5" class="inp !w-16" data-pol="bajaMax"> % (últimos 7 días)</div>
+            <div>
+              <span class="lbl">Lista de exclusión (No contactar)</span>
+              <textarea id="optPaste" rows="3" class="inp font-mono !text-[12px]" placeholder="Pega códigos o teléfonos, uno por línea"></textarea>
+              <div class="flex items-center gap-2 mt-1.5">
+                <button id="optAdd" class="btn btn-ghost !py-1 !text-[12px]">🚫 Agregar a No contactar</button>
+                <span id="optCount" class="ml-auto text-[11.5px] text-slate-500"></span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="card p-4">
@@ -345,10 +368,12 @@ const DEFAULT_BLOCKS = {
   saludo: { label: 'Saludo inicial', prob: 90, items: '{Hola|Buen día|Buenos días|Qué tal} {{nombre}} 👋\n{Hola|Saludos}, {{nombre}}\n¡{Hola|Buen día}{ {{nombre}}|}!' },
   pregunta: { label: 'Pregunta de cierre abierta', prob: 85, items: '¿{Te interesa|Te gustaría} que te {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} te {acomoda|viene bien} que lo {revisemos|conversemos}?' },
   despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Buen día!|¡Que tengas buen día!|¡Éxitos!}' },
+  salida: { label: 'Opción de salida (se agrega al final)', prob: 100, items: 'Si prefieres no recibir más mensajes, responde BAJA.\nSi no deseas más mensajes, solo responde BAJA.' },
 };
+const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, consentOnly: false, salida: true, bajaMax: 3 };
 const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
 const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, fatMin: 6, fatMax: 10, brkMin: 4, brkMax: 10, mode: 'desborde', floor: 30 };
-const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion'];
+const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion', 'No_Contactar', 'Consentimiento'];
 
 /* =========================================================
    ESTADO + PERSISTENCIA
@@ -365,6 +390,9 @@ function defaultState() {
     blocks: JSON.parse(JSON.stringify(DEFAULT_BLOCKS)),
     fallbacks: DEFAULT_FALLBACKS,
     cad: { ...DEFAULT_CAD },
+    policy: { ...DEFAULT_POLICY },
+    optout: {},         // codigo -> {at, motivo}
+    optoutPhones: {},   // telefono -> {at, motivo}
     run: { dirty: false },
     settings: { destino: 'app' },
     ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all', tpl: 0 },
@@ -372,7 +400,7 @@ function defaultState() {
 }
 function migrate(d) {
   const base = defaultState();
-  const s = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) }, cad: { ...base.cad, ...(d.cad || {}) }, run: { ...base.run, ...(d.run || {}) } };
+  const s = { ...base, ...d, settings: { ...base.settings, ...(d.settings || {}) }, ui: { ...base.ui, ...(d.ui || {}) }, cad: { ...base.cad, ...(d.cad || {}) }, policy: { ...base.policy, ...(d.policy || {}) }, optout: d.optout || {}, optoutPhones: d.optoutPhones || {}, run: { ...base.run, ...(d.run || {}) } };
   if (!Array.isArray(d.templates) || d.templates.length < 3) {
     s.templates = base.templates;
     if (d.mensaje && d.mensaje.trim() && d.mensaje !== OLD_DEFAULT_MSG) s.templates[0] = { text: d.mensaje, on: true };
@@ -559,9 +587,10 @@ function composeMessage(c, g, avoid) {
     const body = renderSpintax(t.text, c, g, fb); keys.push('B' + body.path);
     const pre = block('pregunta');
     const des = block('despedida');
+    const out = S.policy?.salida !== false ? block('salida') : '';
     const sep = Math.random() < 0.5 ? '\n\n' : '\n';
     keys.push(sep.length);
-    const text = tidy([sal, body.text, pre, des].filter(x => x && x.trim()).join(sep));
+    const text = tidy([sal, body.text, pre, des].filter(x => x && x.trim()).join(sep) + (out ? '\n\n' + out : ''));
     res = { text, tpl: t.i, combo: keys.join('|') };
     if (!avoid || (res.combo !== avoid.combo && res.text !== avoid.text && (tpls.length < 2 || res.tpl !== avoid.tpl))) break;
   }
@@ -603,9 +632,64 @@ function windowAt(ts = Date.now()) {
 }
 
 /* =========================================================
+   PROTECCIÓN: no contactar, consentimiento, frecuencia, salud
+   ========================================================= */
+const phoneOf = cod => S.clients[cod]?.telefono || '';
+function isOptOut(cod) { return !!(S.optout[cod] || S.optoutPhones[phoneOf(cod)]); }
+function setOptOut(cod, on, motivo = 'Pidió no recibir mensajes') {
+  const ph = phoneOf(cod), rec = { at: Date.now(), motivo };
+  if (on) { S.optout[cod] = rec; if (ph) S.optoutPhones[ph] = rec; }
+  else { delete S.optout[cod]; if (ph) delete S.optoutPhones[ph]; }
+  const g = S.gestion[cod]; if (g) g.gestionAt = Date.now();
+}
+function optOutByPhoneOrCode(token) {
+  const raw = String(token).trim(); if (!raw) return 0;
+  const ph = normalizePhone(raw); let n = 0;
+  if (S.clients[raw]) { setOptOut(raw, true, 'Lista de exclusión'); n++; }
+  else if (validPhone(ph)) {
+    let found = false;
+    for (const cod of S.clientOrder) if (S.clients[cod].telefono === ph) { setOptOut(cod, true, 'Lista de exclusión'); found = true; n++; }
+    if (!found) { S.optoutPhones[ph] = { at: Date.now(), motivo: 'Lista de exclusión' }; n++; }
+  }
+  return n;
+}
+/** Último envío por teléfono (para el límite de frecuencia) */
+function lastByPhone() {
+  const m = new Map();
+  for (const [cod, g] of Object.entries(S.gestion)) if (g.enviado && g.fechaEnvio) { const ph = phoneOf(cod); if (ph && (m.get(ph)?.t || 0) < g.fechaEnvio) m.set(ph, { t: g.fechaEnvio, cod }); }
+  return m;
+}
+/** Motivo por el que un contacto no debe recibir mensaje ahora ('' = puede) */
+function blockedReason(cod, lbp = lastByPhone()) {
+  if (isOptOut(cod)) return 'optout';
+  if (S.policy.consentOnly && S.clients[cod]?.consent !== true) return 'consent';
+  const days = +S.policy.freqDays || 0, last = lbp.get(phoneOf(cod));
+  if (days && last && last.cod !== cod && Date.now() - last.t < days * 86400000) return 'freq';
+  return '';
+}
+const BLOCK_LABEL = { optout: 'No contactar', consent: 'Sin consentimiento', freq: 'Omitido (frecuencia)' };
+const BLOCK_LABEL_SET = new Set(Object.values(BLOCK_LABEL));
+function health() {
+  const since = Date.now() - 7 * 86400000;
+  const sent = Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio >= since).length;
+  const bajas = Object.entries(S.optout).filter(([cod, o]) => o.at >= since && S.gestion[cod]?.enviado).length;
+  const rate = sent ? (bajas / sent) * 100 : 0;
+  return { sent, bajas, rate, alert: sent >= 20 && rate >= (+S.policy.bajaMax || 0) && +S.policy.bajaMax > 0 };
+}
+function checkHealth(fromSend) {
+  const h = health();
+  if (h.alert && R.running) { stopRunner(); toast(`Cadencia pausada: ${h.rate.toFixed(1)}% de bajas en 7 días`, 'error', 6000); }
+  return h;
+}
+
+/* =========================================================
    PLANIFICADOR DEL LOTE
    ========================================================= */
-function lotePending(l) { return l ? l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado) : []; }
+function lotePending(l) {
+  if (!l) return [];
+  const lbp = lastByPhone();
+  return l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado && !blockedReason(c, lbp));
+}
 function loteSent(l) { return l ? l.codigos.filter(c => S.gestion[c]?.enviado).length : 0; }
 function lastSentOf(l) {
   let best = null;
@@ -642,11 +726,17 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
   const l = getSendLote(); if (!l) { S.run.info = null; return null; }
   ensureTexts(l, regenTexts);
   ensurePlans(l, regenTimes);
+  const lbp = lastByPhone();
+  for (const cod of l.codigos) { const g = S.gestion[cod]; if (g && !g.enviado) { const r = blockedReason(cod, lbp); if (r) { g.estadoEnvio = BLOCK_LABEL[r]; g.sched = null; g.eff = null; } } }
   const pend = lotePending(l).map(cod => ({ cod, g: S.gestion[cod] }));
   const now = Date.now();
+  const cap = Math.max(0, +S.policy.dailyCap || 0);
+  const dayCount = {}; dayCount[todayKey(now)] = Object.values(S.gestion).filter(g => g.enviado && todayKey(g.fechaEnvio) === todayKey(now)).length;
+  let capHit = false;
   let t = Math.max(from ?? now, now);
   let w = windowAt(t);
   if (!w.inside) t = w.nextStart;
+  while (cap && (dayCount[todayKey(t)] || 0) >= cap) { t = nextWindowStart(dayAt(t, S.cad.end)); capHit = true; }
   let curEnd = dayAt(t, S.cad.end);
   const startT = t;
   // Ajuste proporcional (solo para el día en curso)
@@ -676,13 +766,20 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
       restStart = ns; t = ns + Math.min(gap, 90000) + g.plan.typ;
       curEnd = dayAt(ns, S.cad.end);
     }
+    // Tope diario: si el día ya llegó al máximo, pasa al siguiente día hábil
+    while (cap && (dayCount[todayKey(t)] || 0) >= cap) {
+      const ns = nextWindowStart(dayAt(t, S.cad.end));
+      restStart = ns; t = ns + Math.min(gap, 90000) + g.plan.typ; curEnd = dayAt(ns, S.cad.end); capHit = true;
+    }
+    dayCount[todayKey(t)] = (dayCount[todayKey(t)] || 0) + 1;
     g.sched = t;
     g.eff = { gap, brk, typ: g.plan.typ, restUntil: brk ? restStart + brk : 0 };
     g.estadoEnvio = todayKey(t) > todayKey(now) ? 'Reprogramado' : 'Pendiente';
     if (todayKey(t) === firstDay) { todayCount++; todayEnd = t; } else overflow++;
   }
   const hours = todayEnd ? (todayEnd - startT) / 3600000 : 0;
-  S.run.info = { start: startT, finish: pend.length ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now };
+  const blocked = l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado && blockedReason(c, lbp)).length;
+  S.run.info = { start: startT, finish: pend.length ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now, capHit, cap, blocked };
   save();
   return S.run.info;
 }
@@ -693,16 +790,20 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
 function stats() {
   const total = S.clientOrder.length, assigned = Object.keys(S.gestion).length;
   let avail = 0, noPhone = 0;
-  for (const c of S.clientOrder) { if (S.gestion[c]) continue; if (validPhone(S.clients[c]?.telefono)) avail++; else noPhone++; }
+  let excl = 0; const lbp = lastByPhone();
+  for (const c of S.clientOrder) { if (S.gestion[c]) continue; if (!validPhone(S.clients[c]?.telefono)) noPhone++; else if (blockedReason(c, lbp)) excl++; else avail++; }
   const all = Object.values(S.gestion);
-  return { total, assigned, avail, noPhone, sent: all.filter(g => g.enviado).length, sentToday: all.filter(g => g.enviado && todayKey(g.fechaEnvio) === todayKey()).length };
+  return { total, assigned, avail, noPhone, excl, sent: all.filter(g => g.enviado).length, sentToday: all.filter(g => g.enviado && todayKey(g.fechaEnvio) === todayKey()).length };
 }
 function renderStats() {
   const s = stats();
   $('#stTotal').textContent = s.total.toLocaleString('es-PE');
   $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
   $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
-  $('#stAvailSub').textContent = s.noPhone ? `${s.noPhone} sin número válido` : (s.avail ? `≈ ${Math.ceil(s.avail / LOTE_SIZE)} lotes restantes` : 'sin pendientes');
+  $('#stAvailSub').textContent = [s.noPhone ? `${s.noPhone} sin número` : '', s.excl ? `${s.excl} excluidos` : '', !s.noPhone && !s.excl ? (s.avail ? `≈ ${Math.ceil(s.avail / LOTE_SIZE)} lotes restantes` : 'sin pendientes') : ''].filter(Boolean).join(' · ');
+  const withConsent = S.clientOrder.filter(c => S.clients[c]?.consent === true).length;
+  $('#consentInfo').textContent = `(${withConsent} de ${S.clientOrder.length} lo tienen)`;
+  $('#optCount').textContent = `${new Set([...Object.keys(S.optout).map(phoneOf), ...Object.keys(S.optoutPhones)].filter(Boolean)).size} números en No contactar`;
   $('#stTotalSub').textContent = `${S.lotes.length} lote(s) · ${S.columns.length} columnas`;
   $('#stSent').textContent = s.sent.toLocaleString('es-PE');
   $('#stSentSub').textContent = `${s.sentToday} hoy`;
@@ -729,7 +830,14 @@ function importWorkbook(wb) {
   const headers = res.rows[res.h].map(x => String(x ?? '').trim());
   const slugs = headers.map(slug);
   headers.forEach((hd, i) => { if (slugs[i] && !S.columns.some(c => c.slug === slugs[i])) S.columns.push({ slug: slugs[i], header: hd }); });
-  let added = 0, dup = 0, empty = 0, noPhone = 0, enriched = 0;
+  let added = 0, dup = 0, empty = 0, noPhone = 0, enriched = 0, optIn = 0, optOuts = 0;
+  const consentKey = slugs.find(x => /consentimiento|opt_?in|autoriza|acepta/.test(x));
+  const optKey = slugs.find(x => /no_contactar|opt_?out|dar_de_baja|^baja$/.test(x));
+  const truthy = v => /^(si|sí|s|yes|y|true|1|x|acepta|autoriza|ok)$/i.test(String(v ?? '').trim());
+  const applyFlags = (cod, extra) => {
+    if (consentKey && String(extra[consentKey] ?? '').trim() !== '') { S.clients[cod].consent = truthy(extra[consentKey]); if (S.clients[cod].consent) optIn++; }
+    if (optKey && truthy(extra[optKey])) { setOptOut(cod, true, 'Marcado en Excel'); optOuts++; }
+  };
   const now = Date.now();
   for (let r = res.h + 1; r < res.rows.length; r++) {
     const row = res.rows[r];
@@ -737,14 +845,15 @@ function importWorkbook(wb) {
     if (!codigo) { empty++; continue; }
     const extra = {};
     slugs.forEach((sl, i) => { if (sl) { const v = row[i]; extra[sl] = v instanceof Date ? v.toLocaleDateString('es-PE') : String(v ?? '').trim(); } });
-    if (S.clients[codigo]) { S.clients[codigo].extra = { ...(S.clients[codigo].extra || {}), ...extra }; dup++; enriched++; continue; }
+    if (S.clients[codigo]) { S.clients[codigo].extra = { ...(S.clients[codigo].extra || {}), ...extra }; applyFlags(codigo, extra); dup++; enriched++; continue; }
     const telefono = normalizePhone(row[res.iTel]);
     if (!validPhone(telefono)) noPhone++;
     S.clients[codigo] = { codigo, razon: String(row[res.iRaz] ?? '').trim().replace(/\s+/g, ' '), telefono, addedAt: now, extra };
     S.clientOrder.push(codigo);
+    applyFlags(codigo, extra);
     added++;
   }
-  return { added, dup, empty, noPhone, cols: headers.filter(Boolean).length };
+  return { added, dup, empty, noPhone, optIn, optOuts, consentKey, optKey, cols: headers.filter(Boolean).length };
 }
 function handleExcelFile(file) {
   if (!file) return;
@@ -756,7 +865,7 @@ function handleExcelFile(file) {
       save(true); renderAll();
       const box = $('#importResult');
       box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-emerald-50 text-emerald-800 border border-emerald-200';
-      box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos · ↩️ ${r.dup} ya existían (sus columnas se actualizaron)<br>🧩 ${r.cols} columnas disponibles como variables` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '');
+      box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos · ↩️ ${r.dup} ya existían (sus columnas se actualizaron)<br>🧩 ${r.cols} columnas disponibles como variables` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '') + (r.consentKey ? `<br>🤝 ${r.optIn} con consentimiento (columna detectada)` : '') + (r.optOuts ? `<br>🚫 ${r.optOuts} marcados como No contactar` : '');
       toast(`${r.added} clientes nuevos importados`, 'success');
     } catch (err) {
       const box = $('#importResult');
@@ -771,7 +880,11 @@ function handleExcelFile(file) {
    LOTES
    ========================================================= */
 function generateLote() {
-  const pool = S.clientOrder.filter(c => !S.gestion[c] && validPhone(S.clients[c]?.telefono));
+  const lbp = lastByPhone();
+  const seenPhones = new Set();
+  for (const l of S.lotes) for (const c of lotePending(l)) seenPhones.add(phoneOf(c)); // ya en cola
+  const pool = shuffle(S.clientOrder.filter(c => !S.gestion[c] && validPhone(S.clients[c]?.telefono) && !blockedReason(c, lbp)))
+    .filter(c => { const ph = phoneOf(c); if (seenPhones.has(ph)) return false; seenPhones.add(ph); return true; });
   if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
   const today = todayKey();
   const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
@@ -957,6 +1070,7 @@ function startRunner() {
   if (!lotePending(l).length) { toast('Este lote ya fue enviado por completo.', 'warn'); return; }
   if (!activeTemplates().length) { toast('Activa al menos una plantilla con texto.', 'warn'); return; }
   if (R.running) return;
+  if (health().alert && !confirm('Las bajas de los últimos 7 días superan el límite configurado. ¿Iniciar de todos modos?')) return;
   if (!isApp() && (!waWin || waWin.closed)) {
     const w = window.open('https://web.whatsapp.com/', WA_WINDOW);
     if (w) { waWin = w; try { window.focus(); } catch (e) {} } else toast('Permite ventanas emergentes para esta página.', 'warn', 3500);
@@ -994,6 +1108,7 @@ function afterSent(cod) {
   beep();
   if (!lotePending(getSendLote()).length) { finishLote(); return; }
   planLote({ from: Date.now() });
+  checkHealth(true);
   renderAllRunner();
 }
 function finishLote() {
@@ -1066,6 +1181,12 @@ function renderKpis() {
   $('#progBar').style.width = tot ? `${(sent / tot) * 100}%` : '0%';
   $('#kPend').textContent = pend;
   $('#kWin').textContent = `${S.cad.start}–${S.cad.end}`;
+  const h = health();
+  $('#kBajas').textContent = `${h.rate.toFixed(1)}%`;
+  $('#kBajas').className = 'text-xl font-bold tabular-nums ' + (h.alert ? 'text-rose-600' : h.rate > 0 ? 'text-amber-600' : 'text-slate-800');
+  const hb = $('#healthBanner');
+  hb.classList.toggle('hidden', !h.alert);
+  if (h.alert) hb.innerHTML = `🛑 <b>${h.bajas} de ${h.sent}</b> contactos (${h.rate.toFixed(1)}%) pidieron no recibir mensajes en los últimos 7 días. La cadencia se pausa sola. Revisa el texto de las plantillas y a quién le escribes antes de seguir.`;
   $('#kRate').textContent = pend && info?.rate ? `${info.rate.toFixed(1)}/h` : '—';
   const finish = pend && info ? info.finish : null;
   $('#kEnd').textContent = finish ? fmtWhen(finish) : '—';
@@ -1076,10 +1197,10 @@ function renderKpis() {
     const fuera = todayKey(info.start) !== todayKey() ? ` La jornada de hoy ya cerró o no es día hábil: inicia el ${fmtWhen(info.start)}.` : '';
     if (!info.overflow) {
       box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-emerald-50 border border-emerald-200 text-emerald-800';
-      box.innerHTML = `✓ El lote <b>cabe en la jornada</b>: ${info.todayCount} contactos, cierre estimado <b>${fmtWhen(info.todayEnd)}</b>.` + (info.factor < 1 ? ` Intervalos ajustados al <b>${Math.round(info.factor * 100)}%</b> (piso ${S.cad.floor} s).` : '') + fuera;
+      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} contacto(s) del lote se omiten (no contactar, consentimiento o frecuencia). ` : '') + `✓ El lote <b>cabe en la jornada</b>: ${info.todayCount} contactos, cierre estimado <b>${fmtWhen(info.todayEnd)}</b>.` + (info.factor < 1 ? ` Intervalos ajustados al <b>${Math.round(info.factor * 100)}%</b> (piso ${S.cad.floor} s).` : '') + fuera;
     } else {
       box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-amber-50 border border-amber-200 text-amber-800';
-      box.innerHTML = `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
+      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} omitido(s) por protección. ` : '') + (info.capHit ? `📏 Tope diario de ${info.cap} envíos alcanzado. ` : '') + `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (info.capHit ? ' El resto sale el siguiente día hábil.' : S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
     }
   }
   $('#btnStart').disabled = R.running;
@@ -1096,6 +1217,8 @@ function renderNextBox() {
     <div class="text-[11px] text-slate-500 mt-1 tabular-nums">Intervalo ${Math.round((p.gap || 0) / 1000)} s · escritura ${Math.round((p.typ || 0) / 1000)} s${p.brk ? ` · <b class="text-amber-700">descanso ${Math.round(p.brk / 60000)} min antes</b>` : ''} · ${n.g.gen?.bytes || 0} B</div>`;
 }
 const estadoBadge = g => g.enviado ? `<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✓ Enviado ${fmtTime(g.fechaEnvio)}</span>`
+  : g.estadoEnvio === 'No contactar' ? '<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">🚫 No contactar</span>'
+  : g.estadoEnvio === 'Sin consentimiento' || g.estadoEnvio === 'Omitido (frecuencia)' ? `<span class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">⏭ ${esc(g.estadoEnvio)}</span>`
   : g.estadoEnvio === 'Reprogramado' ? '<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">↪ Reprogramado</span>'
   : '<span class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pendiente</span>';
 function renderQueue() {
@@ -1104,7 +1227,7 @@ function renderQueue() {
   const nextCod = lotePending(l)[0];
   q.innerHTML = l.codigos.map((cod, i) => {
     const c = S.clients[cod], g = S.gestion[cod] || {}, gen = g.gen || {};
-    const cls = g.enviado ? 'row-sent' : cod === nextCod ? 'row-next' : '';
+    const cls = g.enviado ? 'row-sent' : cod === nextCod ? 'row-next' : BLOCK_LABEL_SET.has(g.estadoEnvio) ? 'opacity-50' : '';
     const when = g.enviado ? fmtWhen(g.fechaEnvio) : (g.sched ? fmtWhen(g.sched) : '—');
     return `<tr class="border-b border-slate-100 align-top ${cls}" data-qrow="${esc(cod)}">
       <td class="py-2 pr-2 text-slate-400 tabular-nums">${i + 1}</td>
@@ -1113,7 +1236,7 @@ function renderQueue() {
       <td class="py-2 pr-2 min-w-[240px]"><div class="clamp2 whitespace-pre-wrap cursor-pointer text-slate-700" data-expand title="Clic para ver completo">${esc(gen.text || '—')}</div></td>
       <td class="py-2 pr-2 tabular-nums whitespace-nowrap"><b>${gen.bytes || 0}</b> B<div class="text-[10.5px] text-slate-500">${gen.chars || 0} car. · P${(gen.tpl ?? -1) + 1}</div></td>
       <td class="py-2 pr-2">${estadoBadge(g)}</td>
-      <td class="py-2 text-right">${g.enviado ? '' : `<button class="text-[11.5px] font-semibold text-indigo-600 hover:underline whitespace-nowrap" data-regen="${esc(cod)}">↻ Regenerar</button>`}</td>
+      <td class="py-2 text-right">${g.enviado || BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="text-[11.5px] font-semibold text-indigo-600 hover:underline whitespace-nowrap" data-regen="${esc(cod)}">↻ Regenerar</button>`}</td>
     </tr>`;
   }).join('');
 }
@@ -1201,6 +1324,7 @@ function rowHtml(cod) {
         <div class="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5">
           <a href="${waSendUrl(c.telefono)}" data-wa="${esc(cod)}" class="text-[12.5px] font-semibold text-emerald-700 hover:underline tabular-nums">📱 ${esc(fmtPhone(c.telefono))}</a>
           <span data-sentbadge>${sentBadge(g)}</span>
+          <span data-optbadge>${optBadge(cod)}</span>
         </div>
         <div class="text-[10.5px] text-slate-400 mt-1">${esc(loteLabel(l))}</div>
       </div>
@@ -1217,6 +1341,11 @@ function rowHtml(cod) {
     </div>
     <div class="mt-2.5 pt-2 border-t border-dashed border-slate-200" data-msgstrip>${msgStrip(cod)}</div>
   </div>`;
+}
+function optBadge(cod) {
+  return isOptOut(cod)
+    ? `<button data-opt="${esc(cod)}" class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-rose-600 text-white" title="${esc((S.optout[cod] || S.optoutPhones[phoneOf(cod)])?.motivo || '')} · clic para reactivar">🚫 No contactar</button>`
+    : `<button data-opt="${esc(cod)}" class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50" title="El cliente pidió no recibir más mensajes (respondió BAJA)">🚫 Marcar BAJA</button>`;
 }
 function sentBadge(g) {
   return g.enviado
@@ -1243,6 +1372,8 @@ function updateRowSent(cod) {
   const g = S.gestion[cod];
   row.classList.toggle('row-sent', !!g.enviado);
   $('[data-sentbadge]', row).innerHTML = sentBadge(g);
+  $('[data-optbadge]', row).innerHTML = optBadge(cod);
+  row.classList.toggle('opacity-60', isOptOut(cod));
   $('[data-msgstrip]', row).innerHTML = msgStrip(cod);
 }
 function refreshCrmRow(cod) { const row = document.querySelector(`[data-row="${CSS.escape(cod)}"]`); if (row) $('[data-msgstrip]', row).innerHTML = msgStrip(cod); }
@@ -1260,23 +1391,47 @@ function exportRows(cods) {
       'OBSERVACIÓN': g.obs || '', 'NOMBRE DEL CONTACTO': g.nombre || '', 'CORREO': g.correo || '', 'TELÉFONO': g.tel || '',
       'Mensaje_Generado': g.gen?.text || g.msg || '', 'Peso_Bytes': g.gen?.bytes ?? (g.msg ? byteSize(g.msg) : ''),
       'Hora_Programada': g.sched ? fmtDateTime(g.sched, true) : '', 'Fecha_Hora_Gestion': g.gestionAt ? fmtDateTime(g.gestionAt, true) : '',
+      'No_Contactar': isOptOut(cod) ? 'Sí' : 'No', 'Consentimiento': c.consent === true ? 'Sí' : c.consent === false ? 'No' : '',
     };
   });
 }
-function exportExcel(scope) {
-  if (typeof XLSX === 'undefined') { toast('Librería de Excel no disponible.', 'error'); return; }
+const COL_WIDTHS = [14, 38, 15, 18, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20, 13, 15];
+const STATUS_FILL = { 'Enviado': 'FFD1FAE5', 'Pendiente': 'FFF1F5F9', 'Reprogramado': 'FFFEF3C7', 'No contactar': 'FFFFE4E6', 'Sin consentimiento': 'FFE2E8F0', 'Omitido (frecuencia)': 'FFE2E8F0' };
+async function exportExcel(scope) {
   const cods = scope === 'all' ? S.lotes.flatMap(l => l.codigos) : viewCodigos();
   if (!cods.length) { toast('No hay registros para exportar.', 'warn'); return; }
-  const ws = XLSX.utils.json_to_sheet(exportRows(cods), { header: EXPORT_COLS });
-  ws['!cols'] = [14, 38, 15, 13, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20].map(w => ({ wch: w }));
-  ws['!autofilter'] = { ref: ws['!ref'] };
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, scope === 'all' ? 'Historial' : 'Lote');
   let name;
   if (scope === 'all') name = `CRM_Historial_${todayKey()}.xlsx`;
   else if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `CRM_Lote${l.num}_${l.fecha}.xlsx`; }
   else name = `CRM_${S.ui.view.replace(':', '_')}_${todayKey()}.xlsx`;
-  XLSX.writeFile(wb, name);
+  const rows = exportRows(cods), sheetName = scope === 'all' ? 'Historial' : 'Lote';
+  if (typeof ExcelJS !== 'undefined') {
+    // ExcelJS: encabezado con estilo, filtros, panel fijo y colores por estado
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Difusión CRM'; wb.created = new Date();
+    const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1, xSplit: 2 }] });
+    ws.columns = EXPORT_COLS.map((h, i) => ({ header: h, key: h, width: COL_WIDTHS[i] || 16 }));
+    rows.forEach(r => ws.addRow(r));
+    const head = ws.getRow(1);
+    head.font = { bold: true, color: { argb: 'FFFFFFFF' } }; head.height = 22;
+    head.alignment = { vertical: 'middle' };
+    head.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; });
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: EXPORT_COLS.length } };
+    const iEstado = EXPORT_COLS.indexOf('Estado Envío') + 1, iMsg = EXPORT_COLS.indexOf('Mensaje_Generado') + 1, iNo = EXPORT_COLS.indexOf('No_Contactar') + 1;
+    ws.eachRow((row, n) => {
+      if (n === 1) return;
+      const st = row.getCell(iEstado), fill = STATUS_FILL[st.value];
+      if (fill) st.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+      row.getCell(iMsg).alignment = { wrapText: true, vertical: 'top' };
+      if (row.getCell(iNo).value === 'Sí') row.getCell(iNo).font = { bold: true, color: { argb: 'FFBE123C' } };
+    });
+    const buf = await wb.xlsx.writeBuffer();
+    download(name, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  } else if (typeof XLSX !== 'undefined') {
+    const ws = XLSX.utils.json_to_sheet(rows, { header: EXPORT_COLS });
+    ws['!cols'] = COL_WIDTHS.map(w => ({ wch: w }));
+    ws['!autofilter'] = { ref: ws['!ref'] };
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheetName); XLSX.writeFile(wb, name);
+  } else { toast('Librería de Excel no disponible.', 'error'); return; }
   toast(`Excel descargado (${cods.length} registros)`, 'success');
 }
 function vEsc(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\r?\n/g, '\\n'); }
@@ -1326,6 +1481,7 @@ function setTab(t) {
   if (t === 'crm') renderCRM(true);
 }
 function syncInputs() {
+  $$('[data-pol]').forEach(el => { const v = S.policy[el.dataset.pol]; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; });
   $$('[data-cad]').forEach(el => {
     const k = el.dataset.cad, v = S.cad[k];
     if (el.type === 'checkbox') el.checked = !!v; else if (el.type === 'radio') el.checked = el.value === v; else el.value = v;
@@ -1417,6 +1573,22 @@ $$('[data-cad]').forEach(el => el.addEventListener('change', () => {
   clearTimeout(cadT);
   cadT = setTimeout(() => { planLote({ regenTimes: TIME_KEYS.includes(k), from: null }); save(); renderAllRunner(); }, 200);
 }));
+$$('[data-pol]').forEach(el => el.addEventListener('change', () => {
+  const k = el.dataset.pol;
+  if (el.type === 'checkbox') S.policy[k] = el.checked;
+  else { const v = parseFloat(el.value); if (isNaN(v) || v < 0) { el.value = S.policy[k]; return; } S.policy[k] = v; }
+  if (k === 'salida') markDirty();
+  planLote(); save(); renderStats(); renderAllRunner(); renderPreview();
+}));
+$('#optAdd').addEventListener('click', () => {
+  const lines = $('#optPaste').value.split(/[\r\n,;\t]+/).map(x => x.trim()).filter(Boolean);
+  if (!lines.length) { toast('Pega al menos un código o teléfono.', 'warn'); return; }
+  let n = 0; for (const x of lines) n += optOutByPhoneOrCode(x);
+  $('#optPaste').value = '';
+  planLote({ from: R.running ? Date.now() : null }); save(true); renderStats(); renderAllRunner();
+  if (S.ui.tab === 'crm') renderCRM();
+  toast(`${n} registro(s) agregados a No contactar`, n ? 'warn' : 'ok');
+});
 $$('[data-recalc]').forEach(b => b.addEventListener('click', () => {
   const l = getSendLote(); if (!l || !lotePending(l).length) { toast('No hay pendientes que recalcular.', 'warn'); return; }
   if (!confirm(`¿Regenerar textos y tiempos de ${lotePending(l).length} contacto(s) pendiente(s)?\nLos ya enviados no cambian.`)) return;
@@ -1458,6 +1630,16 @@ $('#crmList').addEventListener('click', async e => {
   }
   const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
   const ex = e.target.closest('[data-expand]'); if (ex) { ex.classList.toggle('open'); return; }
+  const op = e.target.closest('[data-opt]');
+  if (op) {
+    const cod = op.dataset.opt, on = !isOptOut(cod);
+    if (!on && !confirm('¿Reactivar este contacto? Solo hazlo si el cliente volvió a aceptar mensajes.')) return;
+    setOptOut(cod, on, 'Respondió BAJA');
+    planLote({ from: R.running ? Date.now() : null });
+    save(true); updateRowSent(cod); renderStats(); renderAllRunner(); checkHealth();
+    toast(on ? `${cod} marcado como No contactar` : `${cod} reactivado`, on ? 'warn' : 'ok');
+    return;
+  }
   const cp = e.target.closest('[data-copy]');
   if (cp) {
     const c = S.clients[cp.dataset.copy];
