@@ -9,6 +9,8 @@ Es 100 % estático: no usa servidores ni bases de datos. Todo se lee y se escrib
 | `app.js` | Lógica de cruce y escritura (Office.js + SheetJS) |
 | `manifest.xml` | Registro del complemento en Excel Online |
 | `assets/` | Íconos |
+| `difusion/` | Herramienta de difusión por WhatsApp (un solo HTML) · <https://yeikoromeo2.github.io/rellenado/difusion/> |
+| `m365/` | Versión Microsoft 365: Office Scripts, listas de SharePoint, Power Automate y agente de Copilot. Ver [`m365/README.md`](m365/README.md) |
 
 ## 1. Publicar en GitHub Pages (una sola vez)
 

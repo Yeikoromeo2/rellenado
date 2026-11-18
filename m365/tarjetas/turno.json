@@ -1,0 +1,53 @@
+{
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "🔔 Turno de envío · @{outputs('HoraTexto')}",
+      "weight": "Bolder",
+      "size": "Medium",
+      "color": "Accent"
+    },
+    {
+      "type": "TextBlock",
+      "text": "@{outputs('RazonSegura')}",
+      "weight": "Bolder",
+      "size": "Large",
+      "wrap": true,
+      "spacing": "Small"
+    },
+    {
+      "type": "FactSet",
+      "facts": [
+        { "title": "Lote", "value": "@{outputs('Contacto')?['Lote']}" },
+        { "title": "Firma", "value": "@{outputs('Contacto')?['Ejecutivo']}" },
+        { "title": "Peso", "value": "@{outputs('Contacto')?['PesoBytes']} bytes · @{outputs('Contacto')?['Caracteres']} caracteres" }
+      ]
+    },
+    {
+      "type": "Container",
+      "style": "emphasis",
+      "bleed": false,
+      "items": [
+        { "type": "TextBlock", "text": "Mensaje listo para enviar", "size": "Small", "isSubtle": true },
+        { "type": "TextBlock", "text": "@{outputs('MensajeSeguro')}", "wrap": true }
+      ]
+    },
+    {
+      "type": "TextBlock",
+      "text": "1) Abre el chat · 2) Presiona Enter en WhatsApp · 3) Vuelve y marca el resultado.",
+      "size": "Small",
+      "isSubtle": true,
+      "wrap": true
+    }
+  ],
+  "actions": [
+    { "type": "Action.OpenUrl", "title": "💬 Abrir en WhatsApp", "url": "@{outputs('Contacto')?['EnlaceWhatsApp']}" },
+    { "type": "Action.Submit", "id": "enviado", "title": "✅ Ya lo envié", "style": "positive" },
+    { "type": "Action.Submit", "id": "despues", "title": "⏰ En 30 min" },
+    { "type": "Action.Submit", "id": "omitir", "title": "⏭ Omitir" },
+    { "type": "Action.Submit", "id": "baja", "title": "🚫 Pidió BAJA", "style": "destructive" }
+  ]
+}

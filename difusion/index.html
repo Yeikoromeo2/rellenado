@@ -624,7 +624,8 @@ function composeMessage(c, g, avoid) {
     };
     const salRaw = block('saludo'), pres = block('presentacion');
     // Saludo y presentación en el mismo párrafo o separados (más variación natural)
-    const sal = [salRaw, pres].filter(Boolean).join(Math.random() < 0.5 ? ' ' : '\n');
+    const salCerrado = salRaw && pres && /[A-Za-z\u00C0-\u00FF0-9]$/.test(salRaw.trim()) ? salRaw.trim() + '.' : salRaw;
+    const sal = [salCerrado, pres].filter(Boolean).join(Math.random() < 0.5 ? ' ' : '\n');
     const body = renderSpintax(t.text, c, g, fb); keys.push('B' + body.path);
     const datos = block('datos');
     const pre = block('pregunta');
