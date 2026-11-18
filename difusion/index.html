@@ -107,6 +107,11 @@
         <label class="text-[12px] text-slate-500">Lote</label>
         <select id="sendLote" class="inp !w-auto !py-1.5"></select>
       </div>
+      <div class="flex flex-wrap items-center gap-2 mb-3 rounded-xl border border-slate-200 p-2.5">
+        <span class="text-[12px] font-semibold text-slate-600">✍️ Firma el lote:</span>
+        <div id="ejecChips" class="flex flex-wrap gap-1.5"></div>
+        <div class="flex items-center gap-1.5 ml-auto text-[12px] text-slate-500">Tu empresa <input id="miEmpresa" class="inp !w-44 !py-1" placeholder="(opcional) Ej. Distribuidora X"></div>
+      </div>
 
       <div id="blockedBanner" class="hidden mb-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-[13px] flex flex-wrap items-center gap-3">
         <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat con su mensaje único.</span>
@@ -250,6 +255,7 @@
             <div id="varChips" class="flex flex-wrap gap-1.5"></div>
             <button class="btn btn-ghost !py-1 !px-2 !text-[11.5px]" data-ins="{opción 1|opción 2|opción 3}">{ a | b }</button>
           </div>
+          <div id="internalWarn" class="hidden mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800">🔒 Hay una variable de <b>código de cliente</b> en tus textos. Es de uso interno: se quita automáticamente y nunca se muestra al cliente.</div>
           <div class="grid md:grid-cols-2 gap-4">
             <div>
               <div class="relative">
@@ -360,20 +366,37 @@ const ESTADOS = [
 const ACCIONES = ['Activar recurrencia', 'Carterizar', 'Cerrar gestión', 'Contactar', 'Cotizar', 'Recontactar', 'Seguimiento cierre'];
 const OLD_DEFAULT_MSG = 'Hola, estimados de {razon_social} 👋\n\nLes saluda su asesor comercial. Queremos compartirles nuestras promociones vigentes de esta semana y conocer sus necesidades de compra.\n\n¿Les puedo enviar una cotización personalizada? (Código de cliente: {codigo_cliente})\n\n¡Quedo atento!';
 const DEFAULT_TEMPLATES = [
-  '{Te escribo|Le escribo|Me comunico} de parte de {nuestro equipo comercial|tu asesor comercial} para {contarte|comentarte|compartirte} {las promociones vigentes|las ofertas de esta semana|nuestras novedades} {para|pensadas para} {{empresa}}.',
-  '{Quería|Queríamos} {saber cómo van|consultarte cómo están} {las compras|los pedidos} de {{empresa}} {este mes|estas semanas} y {si podemos apoyarte|si necesitas algo de nuestra parte} con {una cotización|precios especiales|stock disponible}.',
-  '{Tenemos|Contamos con} {precios especiales|condiciones preferentes|nuevas promociones} {para clientes como|pensadas para} {{empresa}}{ (cód. {{codigo}})|} y {me gustaría|quisiera} {enviártelas|compartírtelas} {sin compromiso|cuando te acomode}.',
+  '{Les escribo|Me comunico con ustedes} para {contarles|comentarles|compartirles} {las promociones vigentes|las ofertas de esta semana|nuestras novedades} {para|pensadas para} {{empresa}}.',
+  '{Quería|Me gustaría} {saber cómo van|consultarles cómo están} {las compras|los pedidos} de {{empresa}} {este mes|estas semanas} y {si podemos apoyarlos|si necesitan algo de nuestra parte} con {una cotización|precios especiales|stock disponible}.',
+  '{Tenemos|Contamos con} {precios especiales|condiciones preferentes|nuevas promociones} {para clientes como|para} {{empresa}} y {me gustaría|quisiera} {enviarles|compartirles} el detalle {sin compromiso|cuando les acomode}.',
 ];
+const OLD_TPLS = ['{Te escribo|Le escribo|Me comunico} de parte de {nuestro equipo comercial|tu asesor comercial} para {contarte|comentarte|compartirte} {las promociones vigentes|las ofertas de esta semana|nuestras novedades} {para|pensadas para} {{empresa}}.', '{Quería|Queríamos} {saber cómo van|consultarte cómo están} {las compras|los pedidos} de {{empresa}} {este mes|estas semanas} y {si podemos apoyarte|si necesitas algo de nuestra parte} con {una cotización|precios especiales|stock disponible}.'];
+const OLD_PREG = '¿{Te interesa|Te gustaría} que te {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} te {acomoda|viene bien} que lo {revisemos|conversemos}?';
+const OLD_SALIDA = 'Si prefieres no recibir más mensajes, responde BAJA.\nSi no deseas más mensajes, solo responde BAJA.';
+const OLD_TPL3 = '{Tenemos|Contamos con} {precios especiales|condiciones preferentes|nuevas promociones} {para clientes como|pensadas para} {{empresa}}{ (cód. {{codigo}})|} y {me gustaría|quisiera} {enviártelas|compartírtelas} {sin compromiso|cuando te acomode}.';
+const OLD_SALUDO = '{Hola|Buen día|Buenos días|Qué tal} {{nombre}} 👋\n{Hola|Saludos}, {{nombre}}\n¡{Hola|Buen día}{ {{nombre}}|}!';
+// Ejecutivos que firman los mensajes (cargo según cada persona)
+const DEFAULT_EJECUTIVOS = [
+  { nombre: 'Cinthya Sandoval', cargo: 'asesora comercial' },
+  { nombre: 'Fiorella Viena', cargo: 'asesora comercial' },
+  { nombre: 'Harold Sovero', cargo: 'asesor comercial' },
+  { nombre: 'Lorena Suncion', cargo: 'asesora comercial' },
+];
+// Variables internas que JAMÁS se muestran al cliente
+const INTERNAL_VARS = new Set(['codigo', 'codigo_cliente', 'codigo_de_cliente', 'customer_id', 'cod_cliente', 'codcliente']);
 const DEFAULT_BLOCKS = {
-  saludo: { label: 'Saludo inicial', prob: 90, items: '{Hola|Buen día|Buenos días|Qué tal} {{nombre}} 👋\n{Hola|Saludos}, {{nombre}}\n¡{Hola|Buen día}{ {{nombre}}|}!' },
-  pregunta: { label: 'Pregunta de cierre abierta', prob: 85, items: '¿{Te interesa|Te gustaría} que te {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} te {acomoda|viene bien} que lo {revisemos|conversemos}?' },
+  saludo: { label: 'Saludo a la empresa (razón social)', prob: 100, items: '{Hola|Buen día|Buenos días}, {equipo de|estimados de} {{empresa}} 👋\n{Hola|Saludos}, {{empresa}}\n¡{Hola|Buen día}, {equipo de |}{{empresa}}!' },
+  presentacion: { label: 'Presentación del ejecutivo', prob: 100, items: '{Soy|Les saluda|Les escribe} {{ejecutivo}}, {{cargo}}{ de {{mi_empresa}}|}.\n{Mi nombre es|Soy} {{ejecutivo}} y {seré|soy} {su|el} {{cargo}} {a cargo de su cuenta|de su cuenta|}.' },
+  datos: { label: 'Solicitud de datos (siempre)', prob: 100, items: 'Para {actualizar|completar|mantener al día} {nuestra base|sus datos|su ficha}, ¿me {podrían|pueden} {indicar|compartir} el nombre de la persona {encargada de compras|que ve las compras}, su correo y un teléfono directo?\n{Además|Por otro lado}, ¿me {ayudan|podrían ayudar} con el nombre {del encargado|de la persona encargada} de compras, un correo de contacto y un número directo para {coordinar mejor|atenderlos mejor}?\n¿Con quién {debo coordinar|coordino} las compras? {Les agradecería|Agradecería} su nombre, correo y un teléfono directo.' },
+  pregunta: { label: 'Pregunta de cierre abierta', prob: 40, items: '¿{Les interesa|Les gustaría} que les {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} les {acomoda|viene bien} que lo {revisemos|conversemos}?' },
+
   despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Buen día!|¡Que tengas buen día!|¡Éxitos!}' },
-  salida: { label: 'Opción de salida (se agrega al final)', prob: 100, items: 'Si prefieres no recibir más mensajes, responde BAJA.\nSi no deseas más mensajes, solo responde BAJA.' },
+  salida: { label: 'Opción de salida (se agrega al final)', prob: 100, items: 'Si prefieren no recibir más mensajes, respondan BAJA.\nSi no desean más mensajes, solo respondan BAJA.' },
 };
 const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, consentOnly: false, salida: true, bajaMax: 3 };
 const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
 const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, fatMin: 6, fatMax: 10, brkMin: 4, brkMax: 10, mode: 'desborde', floor: 30 };
-const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion', 'No_Contactar', 'Consentimiento'];
+const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion', 'No_Contactar', 'Consentimiento', 'Ejecutivo'];
 
 /* =========================================================
    ESTADO + PERSISTENCIA
@@ -394,7 +417,7 @@ function defaultState() {
     optout: {},         // codigo -> {at, motivo}
     optoutPhones: {},   // telefono -> {at, motivo}
     run: { dirty: false },
-    settings: { destino: 'app' },
+    settings: { destino: 'app', ejecutivo: DEFAULT_EJECUTIVOS[0].nombre, miEmpresa: '', ejecutivos: DEFAULT_EJECUTIVOS.map(e => ({ ...e })) },
     ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all', tpl: 0 },
   };
 }
@@ -406,7 +429,16 @@ function migrate(d) {
     if (d.mensaje && d.mensaje.trim() && d.mensaje !== OLD_DEFAULT_MSG) s.templates[0] = { text: d.mensaje, on: true };
   }
   if (!d.blocks) s.blocks = base.blocks;
-  for (const k of Object.keys(DEFAULT_BLOCKS)) if (!s.blocks[k]) s.blocks[k] = JSON.parse(JSON.stringify(DEFAULT_BLOCKS[k]));
+  // Migración v3: sin códigos internos, saludo a la razón social, presentación y solicitud de datos
+  s.templates.forEach(t => { if (t.text === OLD_TPL3) t.text = DEFAULT_TEMPLATES[2]; const i = OLD_TPLS.indexOf(t.text); if (i >= 0) t.text = DEFAULT_TEMPLATES[i]; });
+  if (s.blocks.salida && s.blocks.salida.items === OLD_SALIDA) s.blocks.salida.items = DEFAULT_BLOCKS.salida.items;
+  if (s.blocks.pregunta && s.blocks.pregunta.items === OLD_PREG) s.blocks.pregunta.items = DEFAULT_BLOCKS.pregunta.items;
+  if (s.blocks.saludo && s.blocks.saludo.items === OLD_SALUDO) s.blocks.saludo = JSON.parse(JSON.stringify(DEFAULT_BLOCKS.saludo));
+  if (s.blocks.pregunta && +s.blocks.pregunta.prob === 85 && !s.blocks.presentacion) s.blocks.pregunta.prob = 40;
+  if (!Array.isArray(s.settings.ejecutivos) || !s.settings.ejecutivos.length) s.settings.ejecutivos = DEFAULT_EJECUTIVOS.map(e => ({ ...e }));
+  const ordered = {};
+  for (const k of Object.keys(DEFAULT_BLOCKS)) ordered[k] = s.blocks[k] || JSON.parse(JSON.stringify(DEFAULT_BLOCKS[k]));
+  s.blocks = ordered;
   if (!Array.isArray(s.columns)) s.columns = [];
   if (!Array.isArray(s.clientOrder) || (!s.clientOrder.length && Object.keys(s.clients || {}).length)) s.clientOrder = Object.keys(s.clients || {});
   delete s.mensaje;
@@ -524,17 +556,24 @@ const waSendUrl = (phone, text) => (isApp() ? `whatsapp://send?phone=${phone}` :
 /* =========================================================
    MOTOR DE TEXTO: variables + Spintax + bloques rotativos
    ========================================================= */
-const VAR_ALIAS = { empresa: 'razon', razon_social: 'razon', razonsocial: 'razon', cliente: 'razon', codigo: 'codigo', codigo_cliente: 'codigo', codigo_de_cliente: 'codigo', telefono: 'telefono', numero: 'telefono', numero_de_contacto: 'telefono', celular: 'telefono', nombre: 'nombre', nombre_del_contacto: 'nombre', contacto: 'nombre' };
+const VAR_ALIAS = { ejecutivo: 'ejecutivo', asesor: 'ejecutivo', asesora: 'ejecutivo', firma: 'ejecutivo', cargo: 'cargo', mi_empresa: 'mi_empresa', empresa: 'razon', razon_social: 'razon', razonsocial: 'razon', cliente: 'razon', codigo: 'codigo', codigo_cliente: 'codigo', codigo_de_cliente: 'codigo', telefono: 'telefono', numero: 'telefono', numero_de_contacto: 'telefono', celular: 'telefono', nombre: 'nombre', nombre_del_contacto: 'nombre', contacto: 'nombre' };
 function fallbackMap() {
   const m = {};
   String(S.fallbacks || '').split('\n').forEach(l => { const i = l.indexOf('='); if (i > 0) m[slug(l.slice(0, i))] = l.slice(i + 1).trim(); });
   return m;
 }
+function ejecutivoDe(g) {
+  const nombre = (g && loteById(g.loteId)?.ejecutivo) || S.settings.ejecutivo || '';
+  return (S.settings.ejecutivos || []).find(e => e.nombre === nombre) || { nombre, cargo: 'asesor comercial' };
+}
 function varValue(name, c, g, fb) {
   const k = slug(name), a = VAR_ALIAS[k], ex = c.extra || {};
+  if (INTERNAL_VARS.has(k) || a === 'codigo') return ''; // los códigos son de uso interno: nunca van al cliente
   let v = '';
+  if (a === 'ejecutivo') return ejecutivoDe(g).nombre;
+  if (a === 'cargo') return ejecutivoDe(g).cargo || 'asesor comercial';
+  if (a === 'mi_empresa') return String(S.settings.miEmpresa || '').trim();
   if (a === 'razon') v = c.razon;
-  else if (a === 'codigo') v = c.codigo;
   else if (a === 'telefono') v = c.telefono;
   else if (a === 'nombre') v = (g && g.nombre) || ex.nombre || ex.nombre_del_contacto || ex.contacto || '';
   if (!String(v ?? '').trim()) v = ex[k] ?? '';
@@ -563,7 +602,7 @@ function renderSpintax(tpl, c, g, fb) {
   return { text: s, path: path.join('.') };
 }
 function tidy(t) {
-  return t.split('\n').map(l => l.replace(/[ \t]+/g, ' ').replace(/\s+([,.;:!?)])/g, '$1').replace(/([¡¿(])\s+/g, '$1').replace(/,\s*,+/g, ',').replace(/^\s*[,;:]\s*/, '').replace(/¡\s*!/g, '').trim())
+  return t.split('\n').map(l => l.replace(/[ \t]+/g, ' ').replace(/\s+(de|del|para|con)\s*([.,;:!?])/gi, '$2').replace(/\(\s*\)/g, '').replace(/\s+([,.;:!?)])/g, '$1').replace(/([¡¿(])\s+/g, '$1').replace(/,\s*,+/g, ',').replace(/^\s*[,;:]\s*/, '').replace(/¡\s*!/g, '').trim())
     .join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 function activeTemplates() { return S.templates.map((t, i) => ({ ...t, i })).filter(t => t.on !== false && t.text.trim()); }
@@ -579,18 +618,21 @@ function composeMessage(c, g, avoid) {
     const keys = [`T${t.i}`];
     const block = (name) => {
       const b = S.blocks[name]; const items = String(b?.items || '').split('\n').map(x => x.trim()).filter(Boolean);
-      if (!items.length || Math.random() * 100 >= (Number(b.prob) || 0)) { keys.push(name[0] + '-'); return ''; }
+      if (!items.length || Math.random() * 100 >= (Number(b.prob) || 0)) { keys.push(name + '-'); return ''; }
       const ii = Math.floor(Math.random() * items.length); const r = renderSpintax(items[ii], c, g, fb);
-      keys.push(`${name[0]}${ii}:${r.path}`); return r.text;
+      keys.push(`${name}${ii}:${r.path}`); return r.text;
     };
-    const sal = block('saludo');
+    const salRaw = block('saludo'), pres = block('presentacion');
+    // Saludo y presentación en el mismo párrafo o separados (más variación natural)
+    const sal = [salRaw, pres].filter(Boolean).join(Math.random() < 0.5 ? ' ' : '\n');
     const body = renderSpintax(t.text, c, g, fb); keys.push('B' + body.path);
+    const datos = block('datos');
     const pre = block('pregunta');
     const des = block('despedida');
     const out = S.policy?.salida !== false ? block('salida') : '';
     const sep = Math.random() < 0.5 ? '\n\n' : '\n';
     keys.push(sep.length);
-    const text = tidy([sal, body.text, pre, des].filter(x => x && x.trim()).join(sep) + (out ? '\n\n' + out : ''));
+    const text = tidy([sal, body.text, datos, pre, des].filter(x => x && x.trim()).join(sep) + (out ? '\n\n' + out : ''));
     res = { text, tpl: t.i, combo: keys.join('|') };
     if (!avoid || (res.combo !== avoid.combo && res.text !== avoid.text && (tpls.length < 2 || res.tpl !== avoid.tpl))) break;
   }
@@ -890,7 +932,7 @@ function generateLote() {
   const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
   if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
   const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
-  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos };
+  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos, ejecutivo: S.settings.ejecutivo };
   S.lotes.push(lote);
   for (const c of codigos) S.gestion[c] = { loteId: lote.id, enviado: false, fechaEnvio: null, estadoEnvio: 'Pendiente', gen: null, plan: null, sched: null, gestionAt: null, estado: '', accion: '', obs: '', nombre: '', correo: '', tel: '' };
   S.ui.sendLoteId = lote.id;
@@ -940,8 +982,8 @@ function renderTemplates() {
   ltMatches = []; renderLT();
 }
 function renderVarChips() {
-  const base = ['nombre', 'empresa', 'codigo', 'telefono'];
-  const extra = S.columns.map(c => c.slug).filter(s => !base.includes(s) && !(s in VAR_ALIAS));
+  const base = ['empresa', 'ejecutivo', 'cargo', 'mi_empresa', 'nombre'];
+  const extra = S.columns.map(c => c.slug).filter(s => !base.includes(s) && !(s in VAR_ALIAS) && !INTERNAL_VARS.has(s));
   $('#varChips').innerHTML = [...base, ...extra].map(v => `<button class="btn btn-ghost !py-1 !px-2 !text-[11.5px]" data-ins="{{${esc(v)}}}">{{${esc(v)}}}</button>`).join('');
 }
 function renderBlocks() {
@@ -957,6 +999,11 @@ function renderBlocks() {
       <p class="text-[11px] text-slate-500 mt-1">Si no hay respaldo, la variable se quita y se limpian espacios y comas sobrantes.</p>
     </div>`;
 }
+function renderEjecutivos() {
+  const l = getSendLote(), cur = (l && l.ejecutivo) || S.settings.ejecutivo;
+  $('#ejecChips').innerHTML = (S.settings.ejecutivos || []).map(e => `<button class="chip ${e.nombre === cur ? 'on' : ''}" style="${e.nombre === cur ? 'background:#4F46E5' : ''}" data-ejec="${esc(e.nombre)}" title="${esc(e.cargo)}">${esc(e.nombre)}</button>`).join('');
+  $('#miEmpresa').value = S.settings.miEmpresa || '';
+}
 function markDirty() {
   const l = getSendLote();
   if (l && lotePending(l).length) { S.run.dirty = true; }
@@ -969,7 +1016,11 @@ function insertAtCursor(v) {
   ta.focus(); ta.selectionStart = s + (v.startsWith('{opción') ? 1 : v.length); ta.selectionEnd = v.startsWith('{opción') ? s + 9 : ta.selectionStart;
   onMsgInput();
 }
-function onMsgInput() { curTpl().text = $('#msg').value; if (ltMatches.length) { ltMatches = []; renderLT(); } markDirty(); }
+function internalWarn() {
+  const has = S.templates.some(t => /\{\{?\s*(codigo|codigo_cliente|codigo_de_cliente|customer_id)\s*\}?\}/i.test(t.text)) || Object.values(S.blocks).some(b => /\{\{?\s*(codigo|codigo_cliente|customer_id)\s*\}?\}/i.test(b.items || ''));
+  $('#internalWarn').classList.toggle('hidden', !has);
+}
+function onMsgInput() { curTpl().text = $('#msg').value; internalWarn(); if (ltMatches.length) { ltMatches = []; renderLT(); } markDirty(); }
 
 let previewSample = null;
 function previewTarget() {
@@ -1392,10 +1443,11 @@ function exportRows(cods) {
       'Mensaje_Generado': g.gen?.text || g.msg || '', 'Peso_Bytes': g.gen?.bytes ?? (g.msg ? byteSize(g.msg) : ''),
       'Hora_Programada': g.sched ? fmtDateTime(g.sched, true) : '', 'Fecha_Hora_Gestion': g.gestionAt ? fmtDateTime(g.gestionAt, true) : '',
       'No_Contactar': isOptOut(cod) ? 'Sí' : 'No', 'Consentimiento': c.consent === true ? 'Sí' : c.consent === false ? 'No' : '',
+      'Ejecutivo': loteById(g.loteId)?.ejecutivo || '',
     };
   });
 }
-const COL_WIDTHS = [14, 38, 15, 18, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20, 13, 15];
+const COL_WIDTHS = [14, 38, 15, 18, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20, 13, 15, 20];
 const STATUS_FILL = { 'Enviado': 'FFD1FAE5', 'Pendiente': 'FFF1F5F9', 'Reprogramado': 'FFFEF3C7', 'No contactar': 'FFFFE4E6', 'Sin consentimiento': 'FFE2E8F0', 'Omitido (frecuencia)': 'FFE2E8F0' };
 async function exportExcel(scope) {
   const cods = scope === 'all' ? S.lotes.flatMap(l => l.codigos) : viewCodigos();
@@ -1497,6 +1549,7 @@ function renderDest() {
     : 'Abre WhatsApp Web en una única pestaña reutilizable. Permite ventanas emergentes para esta página.';
 }
 function renderAll() {
+  renderEjecutivos(); internalWarn();
   renderDest(); renderStats(); renderLotes(); renderVarChips(); renderPreview(); renderAllRunner();
   if (S.ui.tab === 'crm') renderCRM(true);
 }
@@ -1522,6 +1575,15 @@ const dz = $('#dropZone');
 dz.addEventListener('drop', e => handleExcelFile(e.dataTransfer.files[0]));
 // Lotes
 $('#genLote').addEventListener('click', generateLote);
+$('#ejecChips').addEventListener('click', e => {
+  const b = e.target.closest('[data-ejec]'); if (!b) return;
+  S.settings.ejecutivo = b.dataset.ejec;
+  const l = getSendLote();
+  if (l && lotePending(l).length && l.ejecutivo !== b.dataset.ejec) { l.ejecutivo = b.dataset.ejec; markDirty(); toast(`Los pendientes del lote se firmarán como ${b.dataset.ejec}. Pulsa "Recalcular tiempos y textos".`, 'ok', 4000); }
+  else if (l && !l.ejecutivo) l.ejecutivo = b.dataset.ejec;
+  save(); renderEjecutivos(); renderPreview();
+});
+$('#miEmpresa').addEventListener('input', e => { S.settings.miEmpresa = e.target.value; markDirty(); });
 function switchLote(id) {
   if (id === S.ui.sendLoteId) return;
   if (R.running && !confirm('Hay una cadencia en curso. ¿Cambiar de lote? (se detendrá)')) { renderLotes(); return; }
@@ -1558,7 +1620,7 @@ $('#blocksBox').addEventListener('input', e => {
   else if (t.dataset.blkProb) S.blocks[t.dataset.blkProb].prob = Math.max(0, Math.min(100, +t.value || 0));
   else if (t.id === 'fallbacks') S.fallbacks = t.value;
   else return;
-  markDirty();
+  internalWarn(); markDirty();
 });
 // Motor de cadencia
 const TIME_KEYS = ['gapMin', 'gapMax', 'typMin', 'typMax', 'fatMin', 'fatMax', 'brkMin', 'brkMax'];
