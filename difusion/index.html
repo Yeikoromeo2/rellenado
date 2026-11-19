@@ -11,75 +11,105 @@
   tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } } };
 </script>
 <style>
-  body { background: #F8FAFC; }
-  .card { background: #fff; border: 1px solid #E2E8F0; border-radius: 14px; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  :root { --ind: #4F46E5; --em: #059669; }
+  body { background: #F4F6FB; }
+  .card { background: #fff; border: 1px solid #E8ECF3; border-radius: 18px; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -18px rgba(15,23,42,.18); }
+  .card-h { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; color: #0F172A; margin-bottom: 12px; }
+  .card-h .ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; background: #EEF2FF; }
   .chip { font-size: 11px; line-height: 1; padding: 6px 9px; border-radius: 999px; border: 1px solid #E2E8F0; background: #fff; color: #475569; white-space: nowrap; transition: all .12s ease; cursor: pointer; }
   .chip:hover { border-color: #A5B4FC; color: #3730A3; background: #EEF2FF; }
   .chip.on { color: #fff; border-color: transparent; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
-  .inp { width: 100%; font-size: 12.5px; padding: 6px 9px; border: 1px solid #E2E8F0; border-radius: 8px; background: #fff; outline: none; transition: border-color .12s, box-shadow .12s; }
+  .inp { width: 100%; font-size: 12.5px; padding: 6px 9px; border: 1px solid #E2E8F0; border-radius: 9px; background: #fff; outline: none; transition: border-color .12s, box-shadow .12s; }
   .inp:focus { border-color: #6366F1; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
   .inp.bad { border-color: #F43F5E; background: #FFF1F2; }
   .inp.good { border-color: #10B981; }
-  .lbl { display: block; font-size: 10.5px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 3px; }
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 10px; transition: all .12s; white-space: nowrap; }
-  .btn:disabled { opacity: .45; cursor: not-allowed; }
-  .btn-primary { background: #4F46E5; color: #fff; } .btn-primary:hover:not(:disabled) { background: #4338CA; }
+  .lbl { display: block; font-size: 10.5px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 11px; transition: all .12s; white-space: nowrap; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-primary { background: var(--ind); color: #fff; box-shadow: 0 6px 16px -8px rgba(79,70,229,.7); } .btn-primary:hover:not(:disabled) { background: #4338CA; }
   .btn-ghost { background: #fff; color: #334155; border: 1px solid #E2E8F0; } .btn-ghost:hover:not(:disabled) { background: #F1F5F9; }
-  .btn-green { background: #059669; color: #fff; } .btn-green:hover:not(:disabled) { background: #047857; }
+  .btn-green { background: var(--em); color: #fff; } .btn-green:hover:not(:disabled) { background: #047857; }
+  .btn-icon { width: 38px; height: 38px; padding: 0; }
   .row-sent { background: #ECFDF5; border-color: #A7F3D0 !important; }
   .row-next { background: #EEF2FF; }
-  .tab-btn { padding: 8px 14px; border-radius: 10px; font-size: 13.5px; font-weight: 600; color: #64748B; }
+  .row-flash { animation: flash 1.2s ease; }
+  @keyframes flash { 0%,100% { background: transparent; } 30% { background: #FEF3C7; } }
+  .tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 11px; font-size: 13.5px; font-weight: 600; color: #64748B; transition: all .12s; }
+  .tab-btn:hover { color: #334155; background: #F1F5F9; }
   .tab-btn.active { background: #EEF2FF; color: #4338CA; }
-  .tpl-tab { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 8px; color: #64748B; border: 1px solid transparent; }
+  .tpl-tab { font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 9px; color: #64748B; border: 1px solid transparent; }
   .tpl-tab.on { background: #EEF2FF; color: #4338CA; border-color: #C7D2FE; }
   .tpl-tab.off { text-decoration: line-through; opacity: .6; }
   .lt-err { background: rgba(244,63,94,.18); border-bottom: 2px solid #F43F5E; border-radius: 2px; }
   .scroll-thin::-webkit-scrollbar { width: 6px; height: 6px; }
   .scroll-thin::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
-  .wa-bubble { background: #DCF8C6; border-radius: 10px 10px 2px 10px; }
+  .wa-bubble { background: #DCF8C6; border-radius: 12px 12px 3px 12px; }
   .wa-bg { background-color: #EFEAE2; background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px); background-size: 14px 14px; }
   .clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .clamp2.open { -webkit-line-clamp: unset; display: block; }
+  .clamp1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp2.open, .clamp1.open { -webkit-line-clamp: unset; display: block; }
   @keyframes pulseSave { 0%{transform:scale(1)} 50%{transform:scale(1.6)} 100%{transform:scale(1)} }
   .pulse-save { animation: pulseSave .45s ease; }
   .toast-enter { animation: tIn .2s ease; }
   @keyframes tIn { from { opacity:0; transform: translateY(8px);} to { opacity:1; transform:none; } }
   details > summary { list-style: none; cursor: pointer; } details > summary::-webkit-details-marker { display: none; }
+  /* Stepper − valor + */
+  .step { display: inline-flex; align-items: center; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; background: #fff; }
+  .step button { width: 30px; height: 32px; font-size: 16px; font-weight: 700; color: #4F46E5; }
+  .step button:hover { background: #EEF2FF; }
+  .step input { width: 48px; text-align: center; font-weight: 700; font-size: 13px; border: 0; outline: none; -moz-appearance: textfield; }
+  .step input::-webkit-outer-spin-button, .step input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px dashed #EEF0F5; font-size: 13px; }
+  .set-row:last-child { border-bottom: 0; }
+  .set-row .hint { font-size: 11px; color: #94A3B8; }
+  /* Interruptor */
+  .sw { position: relative; width: 38px; height: 22px; flex: none; }
+  .sw input { opacity: 0; width: 0; height: 0; }
+  .sw span { position: absolute; inset: 0; background: #CBD5E1; border-radius: 99px; transition: .15s; cursor: pointer; }
+  .sw span::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+  .sw input:checked + span { background: #4F46E5; }
+  .sw input:checked + span::after { transform: translateX(16px); }
+  /* Perfiles */
+  .preset { flex: 1; min-width: 120px; text-align: left; border: 1.5px solid #E2E8F0; border-radius: 14px; padding: 10px 12px; background: #fff; transition: all .12s; }
+  .preset:hover { border-color: #A5B4FC; }
+  .preset.on { border-color: #4F46E5; background: #EEF2FF; box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+  .preset b { display: block; font-size: 13px; } .preset small { color: #64748B; font-size: 11px; }
+  /* Gráficos */
+  #timeline .dot { cursor: pointer; transition: r .12s; }
+  #timeline .dot:hover { r: 8; }
+  #tlTip { pointer-events: none; }
+  .kpi { border-radius: 14px; background: #F8FAFC; padding: 10px 12px; }
+  .kpi .v { font-size: 20px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .kpi .l { font-size: 10.5px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .04em; }
 </style>
 </head>
 <body class="font-sans text-slate-800 antialiased">
 
-<!-- ============ HEADER ============ -->
+<!-- ============ ENCABEZADO ============ -->
 <header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-200">
-  <div class="max-w-[1440px] mx-auto px-4 h-14 flex items-center gap-3">
-    <div class="flex items-center gap-2 shrink-0">
-      <div class="w-8 h-8 rounded-lg bg-emerald-500 grid place-items-center text-white">
-        <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.6-.4.8-.4h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>
-      </div>
-      <div class="leading-tight hidden sm:block">
-        <div class="text-[14px] font-bold">Difusión CRM</div>
-        <div class="text-[11px] text-slate-500">Cadencia humana · Seguimiento diario</div>
-      </div>
+  <div class="max-w-[1280px] mx-auto px-4 h-14 flex items-center gap-3">
+    <div class="w-8 h-8 rounded-xl bg-emerald-500 grid place-items-center text-white shrink-0">
+      <svg viewBox="0 0 24 24" class="w-5 h-5" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.3 14.2c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .1-3.3-.8-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.6-.4.8-.4h.6c.2 0 .4 0 .6.5l.9 2.1c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.8 1.3 1.7 2.1 1.2 1 2.1 1.3 2.4 1.5.3.1.5.1.6-.1l.9-1.1c.2-.3.4-.2.7-.1l2 1c.3.1.5.2.5.3.1.2.1.7-.1 1.3Z"/></svg>
     </div>
-    <nav class="flex items-center gap-1 ml-2 sm:ml-6">
-      <button class="tab-btn" data-tab="campana">1 · Campaña y envío</button>
-      <button class="tab-btn" data-tab="crm">2 · Gestión CRM</button>
+    <nav class="flex items-center gap-1 overflow-x-auto">
+      <button class="tab-btn" data-tab="envio">📤 <span class="hidden sm:inline">Envío</span></button>
+      <button class="tab-btn" data-tab="mensajes">✍️ <span class="hidden sm:inline">Mensajes</span></button>
+      <button class="tab-btn" data-tab="crm">📋 <span class="hidden sm:inline">CRM</span></button>
+      <button class="tab-btn" data-tab="ajustes">⚙️ <span class="hidden sm:inline">Ajustes</span></button>
     </nav>
     <div class="ml-auto flex items-center gap-3">
       <div id="runPill" class="hidden"></div>
-      <div class="flex items-center gap-1.5 text-[12px] text-slate-500" title="Todo se guarda en este navegador (localStorage)">
-        <span id="saveDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span id="saveTxt" class="hidden sm:inline">Guardado automáticamente</span>
-      </div>
+      <span id="saveDot" class="w-2 h-2 rounded-full bg-emerald-500" title="Guardado automáticamente"></span>
+      <span id="saveTxt" class="hidden"></span>
       <div class="relative">
-        <button id="backupBtn" class="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100" title="Respaldo / restauración">
+        <button id="backupBtn" class="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100" title="Respaldo">
           <svg viewBox="0 0 24 24" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
         </button>
-        <div id="backupMenu" class="hidden absolute right-0 mt-2 w-64 card p-1.5 text-[13px] shadow-lg">
-          <button id="bkExport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬇️ Descargar respaldo (.json)</button>
-          <button id="bkImport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬆️ Restaurar desde respaldo</button>
+        <div id="backupMenu" class="hidden absolute right-0 mt-2 w-56 card p-1.5 text-[13px] shadow-lg">
+          <button id="bkExport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬇️ Descargar respaldo</button>
+          <button id="bkImport" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">⬆️ Restaurar respaldo</button>
           <div class="border-t border-slate-100 my-1"></div>
-          <button id="bkWipe" class="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-50 text-rose-600">🗑️ Borrar todos los datos</button>
+          <button id="bkWipe" class="w-full text-left px-3 py-2 rounded-lg hover:bg-rose-50 text-rose-600">🗑️ Borrar todo</button>
           <input id="bkFile" type="file" accept=".json,application/json" class="hidden">
         </div>
       </div>
@@ -87,249 +117,123 @@
   </div>
 </header>
 
-<main class="max-w-[1440px] mx-auto px-4 py-5">
+<main class="max-w-[1280px] mx-auto px-4 py-5">
 
-  <!-- ============ STATS ============ -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-    <div class="card px-4 py-3"><div class="lbl">Base total</div><div id="stTotal" class="text-2xl font-bold">0</div><div id="stTotalSub" class="text-[11px] text-slate-400"></div></div>
-    <div class="card px-4 py-3"><div class="lbl">Ya gestionados</div><div id="stAssigned" class="text-2xl font-bold text-indigo-600">0</div><div class="text-[11px] text-slate-400">asignados a lotes</div></div>
-    <div class="card px-4 py-3"><div class="lbl">Disponibles por contactar</div><div id="stAvail" class="text-2xl font-bold">0</div><div id="stAvailSub" class="text-[11px] text-slate-400"></div></div>
-    <div class="card px-4 py-3"><div class="lbl">Mensajes enviados</div><div id="stSent" class="text-2xl font-bold text-emerald-600">0</div><div id="stSentSub" class="text-[11px] text-slate-400"></div></div>
-  </section>
+  <!-- Avisos (solo aparecen cuando hacen falta) -->
+  <div class="space-y-2 mb-4 empty:hidden" id="alerts">
+    <div id="blockedBanner" class="hidden rounded-2xl border-2 border-emerald-400 bg-emerald-50 px-4 py-3 text-[13px] flex flex-wrap items-center gap-3">
+      <span>🔔 Turno de <b id="blockedWho"></b></span>
+      <button id="blockedOpen" class="btn btn-green ml-auto">💬 Abrir en WhatsApp</button>
+    </div>
+    <div id="healthBanner" class="hidden rounded-2xl border border-rose-300 bg-rose-50 px-4 py-2.5 text-[12.5px] text-rose-800"></div>
+    <div id="dirtyBanner" class="hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-2 text-[12.5px] flex flex-wrap items-center gap-2">
+      <span>✏️ Cambiaste los textos.</span>
+      <button class="btn btn-ghost !py-1 !text-[12px] ml-auto" data-recalc>🔄 Aplicar a pendientes</button>
+    </div>
+  </div>
 
-  <!-- ============ TAB 1 ============ -->
-  <section id="tab-campana" class="hidden space-y-5">
+  <!-- ===================== ENVÍO ===================== -->
+  <section id="tab-envio" class="hidden space-y-4">
 
-    <!-- PANEL DE CADENCIA -->
-    <div class="card p-4">
-      <div class="flex flex-wrap items-center gap-2 mb-3">
-        <h2 class="font-bold text-[15px] mr-auto">Panel de control de cadencia</h2>
-        <label class="text-[12px] text-slate-500">Lote</label>
-        <select id="sendLote" class="inp !w-auto !py-1.5"></select>
-      </div>
-      <div class="flex flex-wrap items-center gap-2 mb-3 rounded-xl border border-slate-200 p-2.5">
-        <span class="text-[12px] font-semibold text-slate-600">✍️ Firma el lote:</span>
-        <div id="ejecChips" class="flex flex-wrap gap-1.5"></div>
-        <div class="flex items-center gap-1.5 ml-auto text-[12px] text-slate-500">Tu empresa <input id="miEmpresa" class="inp !w-44 !py-1" placeholder="(opcional) Ej. Distribuidora X"></div>
-      </div>
-
-      <div id="blockedBanner" class="hidden mb-3 rounded-xl border-2 border-emerald-400 bg-emerald-50 p-3 text-[13px] flex flex-wrap items-center gap-3">
-        <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat con su mensaje único.</span>
-        <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
-      </div>
-      <div id="quotaBanner" class="hidden mb-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-[12.5px] text-indigo-900"></div>
-      <div id="healthBanner" class="hidden mb-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-3 text-[13px]"></div>
-      <div id="dirtyBanner" class="hidden mb-3 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[12.5px] flex flex-wrap items-center gap-2">
-        <span>✏️ Cambiaste plantillas o bloques. Los mensajes pendientes aún usan la versión anterior.</span>
-        <button class="btn btn-ghost !py-1 !text-[12px] ml-auto" data-recalc>Recalcular tiempos y textos</button>
-      </div>
-
-      <div class="grid md:grid-cols-12 gap-3">
-        <div class="md:col-span-4 rounded-xl bg-slate-50 border border-slate-200 p-4 flex flex-col items-center justify-center text-center">
+    <div class="grid lg:grid-cols-12 gap-4">
+      <!-- Control -->
+      <div class="card p-5 lg:col-span-5 flex flex-col">
+        <div class="flex items-center justify-between">
           <div id="cadState" class="text-[12px] font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-600">Detenido</div>
-          <div id="countdown" class="text-5xl font-bold tabular-nums tracking-tight my-2 text-slate-800">--:--</div>
-          <div id="countdownLbl" class="text-[11.5px] text-slate-500">para el siguiente contacto</div>
-          <div class="w-full mt-3">
-            <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>Progreso del lote</span><span id="progTxt">0/0</span></div>
-            <div class="h-2 bg-slate-200 rounded-full overflow-hidden"><div id="progBar" class="h-full bg-emerald-500 transition-all" style="width:0%"></div></div>
-          </div>
+          <select id="sendLote" class="inp !w-auto !py-1 !text-[12px]" title="Lote"></select>
         </div>
-        <div class="md:col-span-8 flex flex-col gap-3">
-          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Pendientes</div><div id="kPend" class="text-xl font-bold">0</div></div>
-            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Ritmo prom.</div><div id="kRate" class="text-xl font-bold">—</div></div>
-            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Cierre proyectado</div><div id="kEnd" class="text-xl font-bold tabular-nums">—</div></div>
-            <div class="rounded-lg border border-slate-200 px-3 py-2" title="Envíos en las últimas 24 horas (ventana móvil)"><div class="lbl">Cupo 24 h</div><div id="kCupo" class="text-xl font-bold tabular-nums">0/30</div><div id="kCupoSub" class="text-[10.5px] text-slate-500 leading-tight"></div></div>
-            <div class="rounded-lg border border-slate-200 px-3 py-2" title="Contactos que pidieron no recibir más mensajes en los últimos 7 días, sobre los enviados en ese periodo"><div class="lbl">Bajas 7 días</div><div id="kBajas" class="text-xl font-bold tabular-nums">0%</div></div>
-          </div>
-          <div id="fitBox" class="rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600">—</div>
-          <div class="flex flex-wrap gap-2">
-            <button id="btnStart" class="btn btn-primary">▶ Comenzar</button>
-            <button id="btnPause" class="btn btn-ghost">⏸ Pausar</button>
-            <button id="btnNow" class="btn btn-ghost" title="Abrir el siguiente contacto sin esperar">⚡ Enviar siguiente ahora</button>
-            <button class="btn btn-ghost" data-recalc>🔄 Recalcular tiempos y textos</button>
-          </div>
-          <div id="nextBox" class="rounded-xl border border-slate-200 p-3 text-[12.5px]"></div>
+        <div class="text-center my-4">
+          <div id="countdown" class="text-6xl font-extrabold tabular-nums tracking-tight text-slate-800">--:--</div>
+          <div id="countdownLbl" class="text-[12px] text-slate-500 mt-1"></div>
+        </div>
+        <div class="flex items-center justify-center gap-2">
+          <button id="btnStart" class="btn btn-primary !px-6 !py-2.5 !text-[14px]">▶ Comenzar</button>
+          <button id="btnPause" class="hidden"></button>
+          <button id="btnNow" class="btn btn-ghost btn-icon" title="Abrir el siguiente ahora">⚡</button>
+          <button class="btn btn-ghost btn-icon" data-recalc title="Recalcular horarios y textos">🔄</button>
+        </div>
+        <div class="mt-5">
+          <div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>Progreso del lote</span><span id="progTxt" class="tabular-nums">0/0</span></div>
+          <div class="h-2.5 bg-slate-100 rounded-full overflow-hidden"><div id="progBar" class="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style="width:0%"></div></div>
         </div>
       </div>
 
-      <div class="mt-3 rounded-xl border border-slate-200 p-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="text-[12px] font-semibold text-slate-600 mr-1">Abrir en:</span>
-          <div id="destSel" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12.5px] font-semibold">
-            <button data-dest="app" class="px-3 py-1.5">💻 WhatsApp de la PC</button>
-            <button data-dest="web" class="px-3 py-1.5 border-l border-slate-200">🌐 WhatsApp Web</button>
+      <!-- Cupo 24 h + indicadores -->
+      <div class="card p-5 lg:col-span-7">
+        <div class="flex flex-col sm:flex-row gap-5 items-center">
+          <div class="relative shrink-0" title="Envíos en las últimas 24 horas">
+            <svg id="donut" viewBox="0 0 120 120" class="w-36 h-36"></svg>
           </div>
-          <button id="btnTestApp" class="btn btn-ghost !py-1.5 !text-[12px] ml-auto">🔓 Activar apertura directa (1 sola vez)</button>
+          <div class="flex-1 w-full">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div class="kpi"><div class="l">Pendientes</div><div id="kPend" class="v">0</div></div>
+              <div class="kpi"><div class="l">Por hora</div><div id="kRate" class="v">—</div></div>
+              <div class="kpi"><div class="l">Cierre</div><div id="kEnd" class="v">—</div></div>
+              <div class="kpi" title="Pidieron no recibir mensajes (últimos 7 días)"><div class="l">Bajas 7d</div><div id="kBajas" class="v">0%</div></div>
+            </div>
+            <div id="kCupo" class="hidden"></div>
+            <div id="kCupoSub" class="text-[12px] text-slate-600 mt-3"></div>
+            <div id="quotaBanner" class="hidden"></div>
+            <div id="fitBox" class="text-[12px] mt-1.5 text-slate-500"></div>
+          </div>
         </div>
-        <p id="destHelp" class="text-[11.5px] text-slate-500 mt-2 leading-relaxed"></p>
       </div>
     </div>
 
-    <div class="grid lg:grid-cols-12 gap-5">
-      <!-- Columna izquierda -->
-      <div class="lg:col-span-4 space-y-5">
-        <div class="card p-4">
-          <div class="flex items-center justify-between mb-3"><h2 class="font-bold text-[15px]">Base de clientes</h2><span class="text-[11px] text-slate-400">.xlsx / .xls</span></div>
-          <label id="dropZone" class="block border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/40 transition">
-            <input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
-            <div class="text-3xl mb-1">📄</div>
-            <div class="text-[13px] font-semibold text-slate-700">Arrastra o haz clic para cargar Excel</div>
-            <div class="text-[11px] text-slate-500 mt-1">Obligatorias: Código de Cliente · Razón Social · Número de Contacto.<br>Las demás columnas se vuelven variables {{columna}}.</div>
+    <!-- Línea de tiempo -->
+    <div class="card p-5">
+      <div class="flex flex-wrap items-center gap-2 mb-2">
+        <div class="card-h !mb-0"><span class="ic">🕒</span>Jornada</div>
+        <div id="tlDays" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12px] font-semibold ml-2"></div>
+        <div class="ml-auto flex items-center gap-3 text-[11px] text-slate-500">
+          <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></i>Enviado</span>
+          <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full bg-indigo-500 inline-block"></i>Programado</span>
+          <span class="flex items-center gap-1"><i class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></i>Siguiente</span>
+        </div>
+      </div>
+      <div class="relative">
+        <svg id="timeline" viewBox="0 0 1000 130" class="w-full h-[130px]" preserveAspectRatio="none"></svg>
+        <div id="tlTip" class="hidden absolute z-10 bg-slate-900 text-white text-[11.5px] rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap"></div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-12 gap-4">
+      <!-- Lote -->
+      <div class="card p-5 lg:col-span-5 space-y-4">
+        <div class="card-h !mb-0"><span class="ic">🎲</span>Lote del día</div>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="kpi !p-2"><div id="stTotal" class="v !text-[17px]">0</div><div class="l">Base</div></div>
+          <div class="kpi !p-2"><div id="stAvail" class="v !text-[17px] text-indigo-600">0</div><div class="l">Disponibles</div></div>
+          <div class="kpi !p-2"><div id="stSent" class="v !text-[17px] text-emerald-600">0</div><div class="l">Enviados</div></div>
+        </div>
+        <div class="hidden"><span id="stAssigned"></span><span id="stTotalSub"></span><span id="stAvailSub"></span><span id="stSentSub"></span></div>
+        <div>
+          <span class="lbl">Firma</span>
+          <div id="ejecChips" class="flex flex-wrap gap-1.5"></div>
+        </div>
+        <div class="flex gap-2">
+          <button id="genLote" class="btn btn-primary flex-1">🎲 Nuevo lote de 30</button>
+          <label id="dropZone" class="btn btn-ghost cursor-pointer" title="Cargar o actualizar la base de clientes (.xlsx)">
+            📄 Base<input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
           </label>
-          <div id="importResult" class="hidden mt-3 text-[12px] rounded-lg p-3"></div>
         </div>
-
-        <div class="card p-4">
-          <div class="flex items-center justify-between mb-3"><h2 class="font-bold text-[15px]">Lotes diarios</h2><span id="loteCount" class="text-[11px] text-slate-400"></span></div>
-          <button id="genLote" class="btn btn-primary w-full">🎲 Generar nuevo lote de 30 al azar</button>
-          <p class="text-[11px] text-slate-500 mt-2">Toma solo contactos nunca asignados y les genera texto y hora programada.</p>
-          <div id="loteList" class="mt-3 space-y-2 max-h-[300px] overflow-y-auto scroll-thin pr-1"></div>
-        </div>
-
-        <div class="card p-4">
-          <h2 class="font-bold text-[15px] mb-1">Buenas prácticas y protección</h2>
-          <p class="text-[11.5px] text-slate-500 mb-3">Lo que realmente protege tu número: permiso del cliente, poca frecuencia y una salida fácil.</p>
-          <div class="space-y-3 text-[12.5px]">
-            <div class="flex items-center gap-2 flex-wrap">Máx. 1 mensaje por número cada <input type="number" min="0" class="inp !w-16" data-pol="freqDays"> días</div>
-            <div class="rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 space-y-2">
-              <div class="flex items-center gap-2 flex-wrap font-semibold text-indigo-900">Máximo <input type="number" min="1" class="inp !w-16" data-pol="max24h"> envíos en <u>cualquier</u> periodo de 24 horas</div>
-              <p class="text-[11px] text-indigo-900/80">Se cuenta desde la hora real de cada envío anterior, no por día calendario. Si ayer empezaste a las 15:00, hoy el cupo se va liberando desde las 15:00 aprox.</p>
-              <label class="flex items-center gap-2 flex-wrap cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-pol="warmup"> Número nuevo: calentamiento gradual desde <input type="date" class="inp !w-36 !py-1" data-pol="warmupStart"></label>
-              <div id="warmInfo" class="text-[11px] text-indigo-900/80"></div>
-              <div class="flex items-center gap-2 flex-wrap"><button id="btnPausa" class="btn btn-ghost !py-1 !text-[12px] !text-rose-700 !border-rose-200">⛔ Pausa de emergencia 48 h</button><span id="pausaInfo" class="text-[11.5px] text-rose-700"></span></div>
-            </div>
-            <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="consentOnly"> <span>Solo contactar clientes con <b>consentimiento registrado</b> <span id="consentInfo" class="text-[11px] text-slate-400"></span></span></label>
-            <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="salida"> <span>Incluir en cada mensaje la opción de salida (<i>"responde BAJA"</i>)</span></label>
-            <div class="flex items-center gap-2 flex-wrap">Pausar si las bajas superan <input type="number" min="0" step="0.5" class="inp !w-16" data-pol="bajaMax"> % (últimos 7 días)</div>
-            <details class="rounded-lg border border-slate-200">
-              <summary class="px-2.5 py-2 text-[12.5px] font-semibold">📘 ¿Qué provoca restricciones de WhatsApp?</summary>
-              <ul class="px-4 pb-3 pt-1 text-[11.5px] text-slate-600 list-disc space-y-1">
-                <li><b>Reportes y bloqueos de quien recibe</b>: es la señal más fuerte. Escribe solo a clientes reales y relevantes.</li>
-                <li><b>Muchos chats nuevos sin respuesta</b>: prioriza clientes que ya te conocen y responde rápido; las conversaciones de ida y vuelta mejoran la reputación del número.</li>
-                <li><b>Ráfagas</b>: muchos mensajes en poco tiempo. Por eso el cupo de 24 h móviles y los intervalos de varios minutos.</li>
-                <li><b>Números nuevos</b>: empieza con 10 al día y sube de a poco (calentamiento).</li>
-                <li><b>Primer mensaje con enlaces o archivos</b>: evítalos; envía primero texto y comparte enlaces cuando el cliente responda.</li>
-                <li><b>Perfil incompleto</b>: usa WhatsApp Business con logo, descripción, dirección y horario.</li>
-                <li><b>Si aparece un aviso de restricción</b>: usa la pausa de emergencia y no envíes nuevos chats por 48 h.</li>
-              </ul>
-            </details>
-            <div>
-              <span class="lbl">Lista de exclusión (No contactar)</span>
-              <textarea id="optPaste" rows="3" class="inp font-mono !text-[12px]" placeholder="Pega códigos o teléfonos, uno por línea"></textarea>
-              <div class="flex items-center gap-2 mt-1.5">
-                <button id="optAdd" class="btn btn-ghost !py-1 !text-[12px]">🚫 Agregar a No contactar</button>
-                <span id="optCount" class="ml-auto text-[11.5px] text-slate-500"></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="card p-4">
-          <h2 class="font-bold text-[15px] mb-3">Motor de cadencia humana</h2>
-          <div class="space-y-3 text-[12.5px]">
-            <div>
-              <span class="lbl">Ventana laboral</span>
-              <div class="grid grid-cols-2 gap-2">
-                <input id="cStart" type="time" class="inp" data-cad="start">
-                <input id="cEnd" type="time" class="inp" data-cad="end">
-              </div>
-              <label class="flex items-center gap-2 mt-1.5 text-[12px] text-slate-600"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-cad="sabado"> Incluir sábados como día hábil</label>
-            </div>
-            <div>
-              <span class="lbl">Intervalo entre contactos (minutos · mín–máx)</span>
-              <div class="grid grid-cols-2 gap-2"><input type="number" min="1" step="0.5" class="inp" data-cad="gapMinM" title="Mínimo"><input type="number" min="1" step="0.5" class="inp" data-cad="gapMaxM" title="Máximo"></div>
-              <label class="flex items-start gap-2 mt-1.5 text-[12px] text-slate-600 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-cad="repartir"> <span><b>Repartir en toda la jornada</b>: distribuye el cupo disponible hasta la hora de cierre, con intervalos irregulares (nunca dos parecidos seguidos).</span></label>
-            </div>
-            <div>
-              <span class="lbl">Pausa de almuerzo</span>
-              <div class="flex items-center gap-2"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-cad="lunch"><input type="time" class="inp" data-cad="lunchStart"><span>a</span><input type="time" class="inp" data-cad="lunchEnd"></div>
-            </div>
-            <div>
-              <span class="lbl">Simulación de escritura (ms por carácter)</span>
-              <div class="grid grid-cols-2 gap-2"><input type="number" min="0" class="inp" data-cad="typMin"><input type="number" min="0" class="inp" data-cad="typMax"></div>
-            </div>
-            <div>
-              <span class="lbl">Pausa por fatiga: cada N envíos (mín–máx)</span>
-              <div class="grid grid-cols-2 gap-2"><input type="number" min="1" class="inp" data-cad="fatMin"><input type="number" min="1" class="inp" data-cad="fatMax"></div>
-            </div>
-            <div>
-              <span class="lbl">Duración del descanso (minutos)</span>
-              <div class="grid grid-cols-2 gap-2"><input type="number" min="0" step="0.5" class="inp" data-cad="brkMin"><input type="number" min="0" step="0.5" class="inp" data-cad="brkMax"></div>
-            </div>
-            <div>
-              <span class="lbl">Si el lote no cabe antes del cierre</span>
-              <label class="flex items-start gap-2 py-1 cursor-pointer"><input type="radio" name="cmode" value="ajuste" class="mt-0.5 accent-indigo-600" data-cad="mode"> <span><b>Ajuste proporcional:</b> acorta intervalos y descansos para cerrar a tiempo, sin bajar del piso mínimo.</span></label>
-              <label class="flex items-start gap-2 py-1 cursor-pointer"><input type="radio" name="cmode" value="desborde" class="mt-0.5 accent-indigo-600" data-cad="mode"> <span><b>Desborde:</b> se detiene al cierre y reprograma el resto al siguiente día hábil.</span></label>
-              <div class="flex items-center gap-2 mt-1"><span class="text-[12px] text-slate-500">Piso mínimo de seguridad</span><input type="number" min="5" class="inp !w-20" data-cad="floor"><span class="text-[12px] text-slate-500">seg</span></div>
-            </div>
-          </div>
-        </div>
+        <div id="importResult" class="hidden text-[11.5px] rounded-lg p-2"></div>
       </div>
 
-      <!-- Columna derecha -->
-      <div class="lg:col-span-8 space-y-5">
-        <div class="card p-4">
-          <div class="flex flex-wrap items-center gap-2 mb-3">
-            <h2 class="font-bold text-[15px] mr-auto">Plantillas multi‑variante (Spintax)</h2>
-            <div id="tplTabs" class="flex flex-wrap gap-1"></div>
-          </div>
-          <div class="flex flex-wrap items-center gap-1.5 mb-2">
-            <span class="text-[11px] text-slate-500 mr-1">Insertar:</span>
-            <div id="varChips" class="flex flex-wrap gap-1.5"></div>
-            <button class="btn btn-ghost !py-1 !px-2 !text-[11.5px]" data-ins="{opción 1|opción 2|opción 3}">{ a | b }</button>
-          </div>
-          <div id="internalWarn" class="hidden mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800">🔒 Hay una variable de <b>código de cliente</b> en tus textos. Es de uso interno: se quita automáticamente y nunca se muestra al cliente.</div>
-          <div class="grid md:grid-cols-2 gap-4">
-            <div>
-              <div class="relative">
-                <div id="msgHighlight" aria-hidden="true" class="absolute inset-0 px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words text-transparent pointer-events-none overflow-hidden rounded-xl border border-transparent font-mono"></div>
-                <textarea id="msg" spellcheck="true" lang="es" rows="8" class="relative w-full bg-transparent px-3 py-2.5 text-[13px] leading-relaxed border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y font-mono" placeholder="{Te escribo|Me comunico} para {contarte|compartirte} …"></textarea>
-              </div>
-              <div class="flex flex-wrap items-center gap-2 mt-2">
-                <label class="flex items-center gap-1.5 text-[12px] text-slate-600"><input id="tplOn" type="checkbox" class="w-4 h-4 accent-indigo-600"> Activa</label>
-                <button id="tplAdd" class="text-[12px] text-indigo-600 font-semibold hover:underline">＋ Agregar</button>
-                <button id="tplDel" class="text-[12px] text-rose-600 hover:underline">Eliminar</button>
-                <button id="ltCheck" class="btn btn-ghost !py-1 !text-[12px] ml-auto">✔️ Revisar ortografía</button>
-              </div>
-              <div id="ltPanel" class="hidden mt-3 border border-slate-200 rounded-xl overflow-hidden">
-                <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
-                  <span id="ltTitle" class="text-[12px] font-semibold"></span>
-                  <div class="flex gap-1"><button id="ltApplyAll" class="text-[11px] font-semibold text-indigo-600 hover:underline px-1">Aplicar todas</button><button id="ltClose" class="text-[11px] text-slate-500 hover:underline px-1">Cerrar</button></div>
-                </div>
-                <div id="ltList" class="max-h-56 overflow-y-auto scroll-thin divide-y divide-slate-100"></div>
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="lbl !mb-0">Vista previa <span id="previewWho" class="normal-case font-normal text-slate-400"></span></span>
-                <button id="btnVariant" class="text-[12px] font-semibold text-indigo-600 hover:underline">🎲 Otra variante</button>
-              </div>
-              <div class="wa-bg rounded-xl p-3 min-h-[200px] border border-slate-200">
-                <div class="wa-bubble ml-auto max-w-[94%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-sm"><span id="preview"></span><div class="text-right text-[10px] text-slate-500 mt-1">ahora ✓✓</div></div>
-              </div>
-              <div id="previewMeta" class="text-[11.5px] text-slate-500 mt-1.5"></div>
-            </div>
-          </div>
-
-          <details class="mt-4 rounded-xl border border-slate-200">
-            <summary class="px-3 py-2.5 text-[13px] font-semibold flex items-center gap-2">🧩 Bloques rotativos y valores de respaldo <span class="text-[11px] font-normal text-slate-400">(una opción por línea · admite Spintax y {{variables}})</span></summary>
-            <div class="p-3 pt-0 grid md:grid-cols-2 gap-3" id="blocksBox"></div>
-          </details>
-        </div>
+      <!-- Siguiente contacto -->
+      <div class="card p-5 lg:col-span-7">
+        <div class="card-h"><span class="ic">👤</span>Siguiente</div>
+        <div id="nextBox"></div>
       </div>
     </div>
 
-    <!-- COLA PROGRAMADA -->
-    <div class="card p-4">
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="font-bold text-[15px]">Cola programada del lote</h2>
-        <span class="text-[11px] text-slate-400">Clic en el texto para verlo completo</span>
-      </div>
-      <div class="overflow-x-auto scroll-thin">
-        <table class="w-full text-[12px]">
-          <thead><tr class="text-left text-[10.5px] uppercase tracking-wide text-slate-500 border-b border-slate-200">
-            <th class="py-2 pr-2">#</th><th class="py-2 pr-2">Cliente</th><th class="py-2 pr-2">Hora programada</th><th class="py-2 pr-2 w-[45%]">Mensaje generado</th><th class="py-2 pr-2">Peso</th><th class="py-2 pr-2">Estado</th><th class="py-2"></th>
+    <!-- Cola -->
+    <div class="card p-5">
+      <div class="card-h"><span class="ic">📋</span>Cola del lote</div>
+      <div class="overflow-x-auto scroll-thin max-h-[440px]">
+        <table class="w-full text-[12.5px]">
+          <thead class="sticky top-0 bg-white"><tr class="text-left text-[10.5px] uppercase tracking-wide text-slate-400 border-b border-slate-200">
+            <th class="py-2 pr-2">#</th><th class="py-2 pr-2">Cliente</th><th class="py-2 pr-2">Hora</th><th class="py-2 pr-2 w-[48%]">Mensaje</th><th class="py-2 pr-2">Estado</th><th class="py-2"></th>
           </tr></thead>
           <tbody id="queue"></tbody>
         </table>
@@ -337,37 +241,161 @@
     </div>
   </section>
 
-  <!-- ============ TAB 2 ============ -->
+  <!-- ===================== MENSAJES ===================== -->
+  <section id="tab-mensajes" class="hidden space-y-4">
+    <div class="grid lg:grid-cols-12 gap-4">
+      <div class="card p-5 lg:col-span-7">
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <div class="card-h !mb-0 mr-auto"><span class="ic">✍️</span>Plantillas</div>
+          <div id="tplTabs" class="flex flex-wrap gap-1"></div>
+          <button id="tplAdd" class="tpl-tab text-indigo-600" title="Agregar plantilla">＋</button>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 mb-2">
+          <div id="varChips" class="flex flex-wrap gap-1.5"></div>
+          <button class="chip" data-ins="{opción 1|opción 2|opción 3}" title="Variantes al azar">{ a | b }</button>
+        </div>
+        <div id="internalWarn" class="hidden mb-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-[12px] text-amber-800">🔒 El código de cliente no se mostrará al cliente.</div>
+        <div class="relative">
+          <div id="msgHighlight" aria-hidden="true" class="absolute inset-0 px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words text-transparent pointer-events-none overflow-hidden rounded-xl border border-transparent font-mono"></div>
+          <textarea id="msg" spellcheck="true" lang="es" rows="11" class="relative w-full bg-transparent px-3 py-2.5 text-[13px] leading-relaxed border border-slate-200 rounded-xl outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 resize-y font-mono"></textarea>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 mt-2">
+          <label class="flex items-center gap-2 text-[12.5px] text-slate-600 cursor-pointer"><span class="sw"><input id="tplOn" type="checkbox"><span></span></span>Activa</label>
+          <button id="tplDel" class="text-[12px] text-rose-600 hover:underline">Eliminar</button>
+          <button id="ltCheck" class="btn btn-ghost !py-1.5 !text-[12px] ml-auto">✔️ Ortografía</button>
+        </div>
+        <div id="ltPanel" class="hidden mt-3 border border-slate-200 rounded-xl overflow-hidden">
+          <div class="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+            <span id="ltTitle" class="text-[12px] font-semibold"></span>
+            <div class="flex gap-1"><button id="ltApplyAll" class="text-[11px] font-semibold text-indigo-600 hover:underline px-1">Aplicar todas</button><button id="ltClose" class="text-[11px] text-slate-500 hover:underline px-1">Cerrar</button></div>
+          </div>
+          <div id="ltList" class="max-h-56 overflow-y-auto scroll-thin divide-y divide-slate-100"></div>
+        </div>
+      </div>
+      <div class="card p-5 lg:col-span-5 flex flex-col">
+        <div class="flex items-center mb-3">
+          <div class="card-h !mb-0"><span class="ic">👁️</span>Vista previa</div>
+          <button id="btnVariant" class="btn btn-ghost !py-1 !text-[12px] ml-auto">🎲 Otra</button>
+        </div>
+        <div id="previewWho" class="text-[11.5px] text-slate-400 mb-1.5"></div>
+        <div class="wa-bg rounded-xl p-3 flex-1 min-h-[220px]">
+          <div class="wa-bubble ml-auto max-w-[94%] px-3 py-2 text-[13px] leading-relaxed whitespace-pre-wrap break-words shadow-sm"><span id="preview"></span><div class="text-right text-[10px] text-slate-500 mt-1">✓✓</div></div>
+        </div>
+        <div id="previewMeta" class="text-[11.5px] text-slate-500 mt-2"></div>
+      </div>
+    </div>
+    <div class="card p-5">
+      <div class="flex flex-wrap items-center gap-3 mb-3">
+        <div class="card-h !mb-0 mr-auto"><span class="ic">🧩</span>Bloques que rotan</div>
+        <span class="text-[12px] text-slate-500">Tu empresa</span><input id="miEmpresa" class="inp !w-52" placeholder="Opcional">
+      </div>
+      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-3" id="blocksBox"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CRM ===================== -->
   <section id="tab-crm" class="hidden">
     <div class="card p-3 mb-4 flex flex-wrap items-center gap-2">
       <select id="viewSel" class="inp !w-auto !py-2 font-semibold"></select>
       <div class="relative flex-1 min-w-[200px]">
         <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔎</span>
-        <input id="search" type="search" placeholder="Buscar por código, razón social o teléfono…" class="inp !py-2 !pl-8">
+        <input id="search" type="search" placeholder="Código, razón social o teléfono" class="inp !py-2 !pl-8">
       </div>
       <div class="flex rounded-lg border border-slate-200 overflow-hidden text-[12px] font-semibold" id="sentFilter">
         <button data-f="all" class="px-3 py-2">Todos</button>
         <button data-f="sent" class="px-3 py-2 border-l border-slate-200">Enviados</button>
         <button data-f="pending" class="px-3 py-2 border-l border-slate-200">Pendientes</button>
       </div>
-      <div class="flex flex-wrap gap-2 ml-auto">
-        <button id="dlVcf" class="btn btn-ghost !text-[12.5px]">👤 Descargar contactos (.vcf)</button>
-        <div class="relative">
-          <button id="dlXlsBtn" class="btn btn-green !text-[12.5px]">⬇ Descargar Excel (.xlsx) ▾</button>
-          <div id="dlXlsMenu" class="hidden absolute right-0 mt-2 w-60 card p-1.5 text-[13px] shadow-lg z-20">
-            <button id="dlXlsView" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Lote / vista actual</button>
-            <button id="dlXlsAll" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Historial completo acumulado</button>
-          </div>
+      <button id="dlVcf" class="btn btn-ghost btn-icon" title="Descargar contactos (.vcf)">👤</button>
+      <div class="relative">
+        <button id="dlXlsBtn" class="btn btn-green !text-[12.5px]">⬇ Excel ▾</button>
+        <div id="dlXlsMenu" class="hidden absolute right-0 mt-2 w-52 card p-1.5 text-[13px] shadow-lg z-20">
+          <button id="dlXlsView" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Vista actual</button>
+          <button id="dlXlsAll" class="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50">Historial completo</button>
         </div>
       </div>
     </div>
     <div class="flex items-center justify-between mb-2 px-1"><div id="crmSummary" class="text-[12px] text-slate-500"></div></div>
-    <div class="hidden xl:grid grid-cols-[minmax(240px,1.05fr)_minmax(380px,1.7fr)_minmax(300px,1.25fr)] gap-4 px-4 pb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-      <div>Cliente</div><div>Estado contacto · Próxima acción</div><div>Datos de contacto · Observación</div>
-    </div>
     <div id="crmList" class="space-y-2"></div>
     <div id="crmMore" class="hidden text-center mt-4"><button class="btn btn-ghost" id="crmMoreBtn">Mostrar más</button></div>
     <div id="crmEmpty" class="hidden card p-10 text-center text-slate-500 text-[14px]"></div>
+  </section>
+
+  <!-- ===================== AJUSTES ===================== -->
+  <section id="tab-ajustes" class="hidden space-y-4">
+    <div class="card p-5">
+      <div class="card-h"><span class="ic">⚡</span>Perfil rápido</div>
+      <div id="presets" class="flex flex-wrap gap-2">
+        <button class="preset" data-preset="prudente"><b>🐢 Prudente</b><small>20 en 24 h · 12–60 min</small></button>
+        <button class="preset" data-preset="recomendado"><b>⚖️ Recomendado</b><small>30 en 24 h · 7–45 min</small></button>
+        <button class="preset" data-preset="nuevo"><b>🌱 Número nuevo</b><small>Empieza en 10 y sube</small></button>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-3 gap-4">
+      <div class="card p-5">
+        <div class="card-h"><span class="ic">⏱️</span>Ritmo</div>
+        <div class="set-row"><span>Máx. en 24 h</span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="200" data-pol="max24h"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Intervalo mín. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="120" data-cad="gapMinM"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Intervalo máx. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="240" data-cad="gapMaxM"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Repartir en la jornada</span><label class="sw"><input type="checkbox" data-cad="repartir"><span></span></label></div>
+        <details class="mt-1">
+          <summary class="text-[12px] text-indigo-600 font-semibold py-1">Avanzado</summary>
+          <div class="set-row"><span>Descanso cada <span class="hint">envíos</span></span><div class="flex gap-1"><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="50" data-cad="fatMin"><button data-stepper="+">+</button></div><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="50" data-cad="fatMax"><button data-stepper="+">+</button></div></div></div>
+          <div class="set-row"><span>Descanso <span class="hint">min</span></span><div class="flex gap-1"><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="120" data-cad="brkMin"><button data-stepper="+">+</button></div><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="120" data-cad="brkMax"><button data-stepper="+">+</button></div></div></div>
+          <div class="set-row"><span>Escritura <span class="hint">ms/car.</span></span><div class="flex gap-1"><input type="number" min="0" class="inp !w-16" data-cad="typMin"><input type="number" min="0" class="inp !w-16" data-cad="typMax"></div></div>
+          <div class="set-row"><span>Si no repartes y no cabe</span>
+            <div class="flex gap-2 text-[12px]"><label class="flex items-center gap-1"><input type="radio" name="cmode" value="desborde" data-cad="mode">Mañana</label><label class="flex items-center gap-1"><input type="radio" name="cmode" value="ajuste" data-cad="mode">Acortar</label><input type="number" min="5" class="inp !w-14" data-cad="floor" title="Piso (seg)"></div></div>
+        </details>
+      </div>
+
+      <div class="card p-5">
+        <div class="card-h"><span class="ic">🗓️</span>Horario</div>
+        <div class="set-row"><span>Jornada</span><div class="flex items-center gap-1"><input type="time" class="inp !w-[116px]" data-cad="start"><span class="text-slate-400">–</span><input type="time" class="inp !w-[116px]" data-cad="end"></div></div>
+        <div class="set-row"><span>Almuerzo</span><div class="flex items-center gap-1"><label class="sw"><input type="checkbox" data-cad="lunch"><span></span></label><input type="time" class="inp !w-[116px]" data-cad="lunchStart"><input type="time" class="inp !w-[116px]" data-cad="lunchEnd"></div></div>
+        <div class="set-row"><span>Sábados</span><label class="sw"><input type="checkbox" data-cad="sabado"><span></span></label></div>
+        <div class="set-row"><span>Número nuevo</span><div class="flex items-center gap-1"><label class="sw"><input type="checkbox" data-pol="warmup"><span></span></label><input type="date" class="inp !w-[140px]" data-pol="warmupStart"></div></div>
+        <div id="warmInfo" class="text-[11.5px] text-indigo-700"></div>
+        <div class="set-row"><span>Emergencia</span><div class="flex items-center gap-2"><span id="pausaInfo" class="text-[11px] text-rose-700"></span><button id="btnPausa" class="btn btn-ghost !py-1.5 !text-[12px] !text-rose-700 !border-rose-200">⛔ Pausa 48 h</button></div></div>
+      </div>
+
+      <div class="card p-5">
+        <div class="card-h"><span class="ic">🛡️</span>Protección</div>
+        <div class="set-row"><span>1 mensaje por número cada <span class="hint">días</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="90" data-pol="freqDays"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Pausar si bajas ≥ <span class="hint">%</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="50" step="0.5" data-pol="bajaMax"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Incluir "respondan BAJA"</span><label class="sw"><input type="checkbox" data-pol="salida"><span></span></label></div>
+        <div class="set-row"><span>Solo con consentimiento <span id="consentInfo" class="hint"></span></span><label class="sw"><input type="checkbox" data-pol="consentOnly"><span></span></label></div>
+      </div>
+    </div>
+
+    <div class="grid lg:grid-cols-2 gap-4">
+      <div class="card p-5">
+        <div class="card-h"><span class="ic">🚫</span>No contactar <span id="optCount" class="ml-auto text-[11.5px] font-normal text-slate-500"></span></div>
+        <textarea id="optPaste" rows="3" class="inp font-mono !text-[12px]" placeholder="Códigos o teléfonos, uno por línea"></textarea>
+        <button id="optAdd" class="btn btn-ghost !py-1.5 !text-[12px] mt-2">Agregar</button>
+      </div>
+      <div class="card p-5">
+        <div class="card-h"><span class="ic">💬</span>WhatsApp</div>
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="destSel" class="flex rounded-lg border border-slate-200 overflow-hidden text-[12.5px] font-semibold">
+            <button data-dest="app" class="px-3 py-1.5">💻 App de la PC</button>
+            <button data-dest="web" class="px-3 py-1.5 border-l border-slate-200">🌐 Web</button>
+          </div>
+          <button id="btnTestApp" class="btn btn-ghost !py-1.5 !text-[12px]">🔓 Permitir apertura directa</button>
+        </div>
+        <p id="destHelp" class="text-[11.5px] text-slate-500 mt-2"></p>
+        <details class="mt-2">
+          <summary class="text-[12px] text-indigo-600 font-semibold py-1">¿Qué provoca restricciones?</summary>
+          <ul class="text-[11.5px] text-slate-600 list-disc pl-5 space-y-0.5 mt-1">
+            <li>Reportes y bloqueos de quien recibe.</li>
+            <li>Muchos chats nuevos sin respuesta.</li>
+            <li>Ráfagas de mensajes en poco tiempo.</li>
+            <li>Enlaces o archivos en el primer mensaje.</li>
+            <li>Número nuevo sin calentamiento.</li>
+          </ul>
+        </details>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -492,7 +520,8 @@ function setSaveIndicator(ok) {
   dot.className = 'w-2 h-2 rounded-full ' + (ok ? 'bg-emerald-500' : 'bg-rose-500');
   dot.classList.remove('pulse-save'); void dot.offsetWidth; dot.classList.add('pulse-save');
   txt.textContent = ok ? 'Guardado automáticamente · ' + new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Error al guardar';
-  txt.className = 'hidden sm:inline ' + (ok ? '' : 'text-rose-600 font-semibold');
+  txt.className = 'hidden';
+  dot.title = txt.textContent;
 }
 window.addEventListener('beforeunload', () => { clearTimeout(saveTimer); try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} });
 
@@ -509,6 +538,8 @@ function fmtDateTime(ts, secs) { if (!ts) return ''; const d = new Date(ts); ret
 function fmtTime(ts, secs) { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}${secs ? ':' + pad(d.getSeconds()) : ''}`; }
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 function fmtWhen(ts) { const same = todayKey(ts) === todayKey(); const d = new Date(ts); return same ? fmtTime(ts, true) : `${DIAS[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)} ${fmtTime(ts, true)}`; }
+/** "12m 05s", "2h 15m": no se confunde con una hora del día */
+function fmtDurCorto(ms) { const s = Math.max(0, Math.ceil(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${h}h ${pad(m)}m` : `${m}m ${pad(x)}s`; }
 function fmtDur(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return h ? `${pad(h)}:${pad(m)}:${pad(x)}` : `${pad(m)}:${pad(x)}`; }
 function normKey(h) { return String(h ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 function slug(h) { return String(h ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, ''); }
@@ -985,6 +1016,7 @@ function handleExcelFile(file) {
       box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-emerald-50 text-emerald-800 border border-emerald-200';
       box.innerHTML = `<b>${esc(file.name)}</b><br>✅ ${r.added} nuevos · ↩️ ${r.dup} ya existían (sus columnas se actualizaron)<br>🧩 ${r.cols} columnas disponibles como variables` + (r.noPhone ? `<br>⚠️ ${r.noPhone} sin número válido (no entrarán en lotes)` : '') + (r.empty ? `<br>· ${r.empty} filas sin código ignoradas` : '') + (r.consentKey ? `<br>🤝 ${r.optIn} con consentimiento (columna detectada)` : '') + (r.optOuts ? `<br>🚫 ${r.optOuts} marcados como No contactar` : '');
       toast(`${r.added} clientes nuevos importados`, 'success');
+      clearTimeout(window.__impT); window.__impT = setTimeout(() => box.classList.add('hidden'), 8000);
     } catch (err) {
       const box = $('#importResult');
       box.className = 'mt-3 text-[12px] rounded-lg p-3 bg-rose-50 text-rose-700 border border-rose-200';
@@ -1025,22 +1057,8 @@ function getSendLote() {
   return l;
 }
 function renderLotes() {
-  const list = $('#loteList');
-  $('#loteCount').textContent = S.lotes.length ? `${S.lotes.length} en total` : '';
-  if (!S.lotes.length) list.innerHTML = '<div class="text-[12px] text-slate-400 text-center py-4">Aún no hay lotes generados.</div>';
-  else {
-    const cur = S.ui.sendLoteId;
-    list.innerHTML = S.lotes.slice().reverse().map(l => {
-      const sent = loteSent(l), tot = l.codigos.length, pct = Math.round(sent / tot * 100);
-      return `<button data-lote="${l.id}" class="w-full text-left rounded-xl border px-3 py-2.5 transition ${l.id === cur ? 'border-indigo-400 bg-indigo-50/60 ring-2 ring-indigo-500/10' : 'border-slate-200 hover:bg-slate-50'}">
-        <div class="flex items-center justify-between text-[13px]"><span class="font-semibold">${esc(loteLabel(l))}</span>
-        ${l.fecha === todayKey() ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">HOY</span>' : ''}</div>
-        <div class="flex items-center gap-2 mt-1.5"><div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${sent === tot ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
-        <span class="text-[11px] text-slate-500 tabular-nums">${sent}/${tot}</span></div></button>`;
-    }).join('');
-  }
   const sel = $('#sendLote');
-  sel.innerHTML = S.lotes.length ? S.lotes.slice().reverse().map(l => `<option value="${l.id}">${esc(loteLabel(l))} (${loteSent(l)}/${l.codigos.length})</option>`).join('') : '<option value="">Sin lotes</option>';
+  sel.innerHTML = S.lotes.length ? S.lotes.slice().reverse().map(l => `<option value="${l.id}">${esc(loteLabel(l))} · ${loteSent(l)}/${l.codigos.length}</option>`).join('') : '<option value="">Sin lotes</option>';
   const l = getSendLote(); if (l) sel.value = l.id;
 }
 
@@ -1064,15 +1082,14 @@ function renderVarChips() {
 }
 function renderBlocks() {
   $('#blocksBox').innerHTML = Object.entries(S.blocks).map(([k, b]) => `
-    <div>
-      <div class="flex items-center justify-between mb-1"><span class="lbl !mb-0">${esc(b.label || k)}</span>
-        <span class="text-[11px] text-slate-500">Probabilidad <input type="number" min="0" max="100" class="inp !w-16 !py-0.5 !px-1.5 inline-block" data-blk-prob="${k}" value="${esc(b.prob)}">%</span></div>
-      <textarea rows="4" spellcheck="true" lang="es" class="inp font-mono !text-[12px]" data-blk="${k}">${esc(b.items)}</textarea>
+    <div class="rounded-xl border border-slate-200 p-3">
+      <div class="flex items-center justify-between mb-1.5"><span class="text-[12.5px] font-semibold">${esc((b.label || k).replace(/\s*\(.*\)$/, ''))}</span>
+        <span class="flex items-center gap-1 text-[11px] text-slate-500"><input type="number" min="0" max="100" class="inp !w-14 !py-0.5 !px-1.5 text-center" data-blk-prob="${k}" value="${esc(b.prob)}" title="Probabilidad de que aparezca">%</span></div>
+      <textarea rows="3" spellcheck="true" lang="es" class="inp font-mono !text-[11.5px]" data-blk="${k}" title="Una opción por línea">${esc(b.items)}</textarea>
     </div>`).join('') + `
-    <div>
-      <span class="lbl">Valores de respaldo si la columna viene vacía (variable=valor)</span>
-      <textarea rows="4" class="inp font-mono !text-[12px]" id="fallbacks">${esc(S.fallbacks)}</textarea>
-      <p class="text-[11px] text-slate-500 mt-1">Si no hay respaldo, la variable se quita y se limpian espacios y comas sobrantes.</p>
+    <div class="rounded-xl border border-slate-200 p-3">
+      <div class="text-[12.5px] font-semibold mb-1.5">Si falta un dato</div>
+      <textarea rows="3" class="inp font-mono !text-[11.5px]" id="fallbacks" title="variable=valor">${esc(S.fallbacks)}</textarea>
     </div>`;
 }
 function renderEjecutivos() {
@@ -1294,15 +1311,15 @@ function beep() {
   } catch (e) {}
 }
 const ST_UI = {
-  activo: ['🟢 En horario activo', 'bg-emerald-100 text-emerald-700', 'para el siguiente contacto'],
-  escribiendo: ['✍️ Simulando escritura', 'bg-sky-100 text-sky-700', 'para abrir el chat'],
-  descanso: ['☕ En pausa por descanso', 'bg-amber-100 text-amber-700', 'de descanso restante'],
-  fuera: ['🌙 Pausado · Fuera de horario laboral', 'bg-indigo-100 text-indigo-700', 'hasta la apertura de la jornada'],
-  esperando: ['🔔 Esperando tu clic', 'bg-emerald-200 text-emerald-800 animate-pulse', 'abre el chat con el botón verde'],
+  activo: ['🟢 Activo', 'bg-emerald-100 text-emerald-700', 'para el siguiente'],
+  escribiendo: ['✍️ Escribiendo', 'bg-sky-100 text-sky-700', 'para abrir el chat'],
+  descanso: ['☕ Descanso', 'bg-amber-100 text-amber-700', 'de descanso'],
+  fuera: ['🌙 Fuera de horario', 'bg-indigo-100 text-indigo-700', 'para abrir la jornada'],
+  esperando: ['🔔 Tu turno', 'bg-emerald-200 text-emerald-800 animate-pulse', 'usa el botón verde'],
   detenido: ['⏹ Detenido', 'bg-slate-200 text-slate-600', 'pulsa Comenzar'],
-  completo: ['✓ Lote completado', 'bg-emerald-100 text-emerald-700', 'sin pendientes'],
-  cupo: ['⏳ Cupo de 24 h completo', 'bg-rose-100 text-rose-700', 'para que se libere un cupo'],
-  pausa: ['⛔ Pausa de emergencia', 'bg-rose-200 text-rose-800', 'de pausa restante'],
+  completo: ['✓ Completo', 'bg-emerald-100 text-emerald-700', 'sin pendientes'],
+  cupo: ['⏳ Cupo lleno', 'bg-rose-100 text-rose-700', 'para liberar cupo'],
+  pausa: ['⛔ Pausa', 'bg-rose-200 text-rose-800', 'de pausa'],
 };
 function renderClock() {
   const now = Date.now(), st = cadStatus(now), ui = ST_UI[st.k];
@@ -1310,11 +1327,11 @@ function renderClock() {
   if (st.k === 'descanso') ms = st.restUntil - now;
   else if (st.until) ms = st.until - now;
   else if (st.k === 'detenido' && st.n?.g.sched) ms = st.n.g.sched - now;
-  const clock = ms != null ? fmtDur(ms) : '--:--';
+  const clock = ms != null ? fmtDurCorto(ms) : '--';
   $('#cadState').textContent = ui[0]; $('#cadState').className = 'text-[12px] font-bold px-3 py-1 rounded-full ' + ui[1];
   $('#countdown').textContent = clock;
-  $('#countdown').className = 'font-bold tabular-nums tracking-tight my-2 ' + (clock.length > 5 ? 'text-4xl ' : 'text-5xl ') + (R.running ? 'text-indigo-600' : 'text-slate-800');
-  $('#countdownLbl').textContent = st.k === 'detenido' && ms != null ? 'según la hora programada (detenido)' : ui[2];
+  $('#countdown').className = 'font-extrabold tabular-nums tracking-tight ' + (clock.length > 7 ? 'text-5xl ' : 'text-6xl ') + (R.running ? 'text-indigo-600' : 'text-slate-800');
+  $('#countdownLbl').textContent = ui[2];
   const pill = $('#runPill');
   if (R.running || R.blocked) { pill.className = 'hidden md:flex items-center gap-2 text-[12px] font-semibold px-2.5 py-1 rounded-full ' + ui[1]; pill.textContent = `${ui[0].split(' ')[0]} ${clock}`; }
   else pill.className = 'hidden';
@@ -1327,51 +1344,69 @@ function renderKpis() {
   $('#progBar').style.width = tot ? `${(sent / tot) * 100}%` : '0%';
   $('#kPend').textContent = pend;
   const q = quotaInfo();
-  $('#kCupo').textContent = `${q.used}/${q.cap}`;
-  $('#kCupo').className = 'text-xl font-bold tabular-nums ' + (q.used >= q.cap ? 'text-rose-600' : q.used >= q.cap * 0.8 ? 'text-amber-600' : 'text-emerald-700');
-  $('#kCupoSub').textContent = q.used >= q.cap ? `libera ${fmtWhen(q.release)}` : `${q.free} libres ahora`;
-  const qb = $('#quotaBanner');
-  qb.classList.toggle('hidden', !q.used);
-  if (q.used) qb.innerHTML = `⏱️ <b>Ventana de 24 h:</b> el primer envío que cuenta fue ${fmtWhen(q.first)}; llevas <b>${q.used} de ${q.cap}</b>. ` +
-    (q.used >= q.cap ? `<b>Cupo completo</b>: no se abrirá ningún chat hasta ${fmtWhen(q.release)} (cuando se cumplan 24 h del envío más antiguo).` : `Ese primer cupo se libera ${fmtWhen(q.first + H24)}.`) +
-    ` Jornada ${S.cad.start}–${S.cad.end}${S.cad.lunch ? `, almuerzo ${S.cad.lunchStart}–${S.cad.lunchEnd}` : ''}.`;
-  $('#warmInfo').textContent = S.policy.warmup ? (S.policy.warmupStart ? `Cupo actual por calentamiento: ${cap24()} en 24 h (sube 5 cada semana hasta ${S.policy.max24h}).` : 'Indica la fecha en que empezaste a usar este número.') : '';
-  $('#pausaInfo').textContent = S.run.pausaHasta && Date.now() < S.run.pausaHasta ? `Activa hasta ${fmtWhen(S.run.pausaHasta)}` : '';
-  $('#btnPausa').textContent = S.run.pausaHasta && Date.now() < S.run.pausaHasta ? '✅ Quitar pausa de emergencia' : '⛔ Pausa de emergencia 48 h';
+  renderDonut(q);
+  $('#kCupoSub').innerHTML = q.used >= q.cap
+    ? `<b class="text-rose-600">Cupo lleno</b> · se libera ${fmtWhen(q.release)}`
+    : `<b class="text-emerald-700">${q.free} libres</b>` + (q.first ? ` · el siguiente cupo vuelve ${fmtWhen(q.first + H24)}` : '');
+  $('#warmInfo').textContent = S.policy.warmup ? (S.policy.warmupStart ? `Hoy: ${cap24()} en 24 h · sube 5 por semana` : 'Indica desde cuándo usas el número') : '';
+  const pausa = S.run.pausaHasta && Date.now() < S.run.pausaHasta;
+  $('#pausaInfo').textContent = pausa ? `hasta ${fmtWhen(S.run.pausaHasta)}` : '';
+  $('#btnPausa').textContent = pausa ? '✅ Quitar' : '⛔ Pausa 48 h';
   const h = health();
   $('#kBajas').textContent = `${h.rate.toFixed(1)}%`;
-  $('#kBajas').className = 'text-xl font-bold tabular-nums ' + (h.alert ? 'text-rose-600' : h.rate > 0 ? 'text-amber-600' : 'text-slate-800');
+  $('#kBajas').className = 'v ' + (h.alert ? 'text-rose-600' : h.rate > 0 ? 'text-amber-600' : '');
   const hb = $('#healthBanner');
   hb.classList.toggle('hidden', !h.alert);
-  if (h.alert) hb.innerHTML = `🛑 <b>${h.bajas} de ${h.sent}</b> contactos (${h.rate.toFixed(1)}%) pidieron no recibir mensajes en los últimos 7 días. La cadencia se pausa sola. Revisa el texto de las plantillas y a quién le escribes antes de seguir.`;
-  $('#kRate').textContent = pend && info?.rate ? `${info.rate.toFixed(1)}/h` : '—';
+  if (h.alert) hb.innerHTML = `🛑 <b>${h.rate.toFixed(1)}%</b> pidió BAJA en 7 días (${h.bajas}/${h.sent}). Envío pausado: revisa a quién escribes.`;
+  $('#kRate').textContent = pend && info?.rate ? info.rate.toFixed(1) : '—';
   const finish = pend && info ? info.finish : null;
-  $('#kEnd').textContent = finish ? fmtWhen(finish) : '—';
-  $('#kEnd').className = 'font-bold tabular-nums ' + (finish && fmtWhen(finish).length > 8 ? 'text-[14px] text-amber-700' : 'text-xl');
+  $('#kEnd').textContent = finish ? fmtWhen(finish).replace(/:\d\d$/, '') : '—';
+  $('#kEnd').className = 'v ' + (finish && todayKey(finish) !== todayKey() ? '!text-[14px] text-amber-700' : '');
   const box = $('#fitBox');
-  if (!l || !pend || !info) { box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600'; box.textContent = l ? '✓ Sin contactos pendientes en este lote.' : 'Genera un lote para calcular la programación.'; }
+  if (!l || !pend || !info) box.textContent = l ? '✓ Lote terminado' : 'Genera un lote para empezar';
   else {
-    const fuera = todayKey(info.start) !== todayKey() ? ` La jornada de hoy ya cerró o no es día hábil: inicia el ${fmtWhen(info.start)}.` : '';
-    if (!info.overflow) {
-      box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-emerald-50 border border-emerald-200 text-emerald-800';
-      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} contacto(s) del lote se omiten (no contactar, consentimiento o frecuencia). ` : '') + `✓ El lote <b>cabe en la jornada</b>: ${info.todayCount} contactos, cierre estimado <b>${fmtWhen(info.todayEnd)}</b>.` + (info.factor < 1 ? ` Intervalos ajustados al <b>${Math.round(info.factor * 100)}%</b> (piso ${S.cad.floor} s).` : '') + fuera;
-    } else {
-      box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-amber-50 border border-amber-200 text-amber-800';
-      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} omitido(s) por protección. ` : '') + (info.capHit ? `⏳ Cupo de ${info.cap} envíos en 24 h: los siguientes se programan cuando se liberan cupos. ` : '') + (info.pausa ? '⛔ Pausa de emergencia activa. ' : '') + `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (info.capHit ? ' Así nunca hay más de ' + info.cap + ' mensajes en 24 horas.' : S.cad.repartir !== false ? ' Lo que no alcanza hoy sigue mañana al abrir la jornada.' : S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
-    }
+    const partes = [];
+    if (info.blocked) partes.push(`🚫 ${info.blocked} omitidos`);
+    if (info.pausa) partes.push('⛔ en pausa');
+    partes.push(info.overflow ? `↪ ${info.overflow} pasan al siguiente día` : '✓ todo cabe hoy');
+    if (info.capHit) partes.push(`⏳ respeta ${info.cap}/24 h`);
+    box.textContent = partes.join(' · ');
   }
-  $('#btnStart').disabled = R.running;
-  $('#btnPause').disabled = !R.running;
+  // Un solo botón principal: Comenzar ⇄ Pausar
+  $('#btnStart').innerHTML = R.running ? '⏸ Pausar' : '▶ Comenzar';
+  $('#btnStart').className = 'btn !px-6 !py-2.5 !text-[14px] ' + (R.running ? 'btn-ghost' : 'btn-primary');
+  renderPresets();
+}
+/** Anillo del cupo de 24 h */
+function renderDonut(q) {
+  const r = 48, c = 2 * Math.PI * r, pct = Math.min(1, q.used / Math.max(1, q.cap));
+  const color = q.used >= q.cap ? '#E11D48' : pct >= 0.8 ? '#F59E0B' : '#10B981';
+  $('#donut').innerHTML = `
+    <circle cx="60" cy="60" r="${r}" fill="none" stroke="#EEF2F7" stroke-width="12"/>
+    <circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
+      stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 60 60)" style="transition:stroke-dasharray .5s"/>
+    <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="#0F172A">${q.used}<tspan font-size="14" fill="#94A3B8">/${q.cap}</tspan></text>
+    <text x="60" y="78" text-anchor="middle" font-size="10.5" fill="#64748B" font-weight="600">EN 24 H</text>`;
 }
 function renderNextBox() {
   const n = nextPending(), l = getSendLote(), box = $('#nextBox');
-  if (!l) { box.innerHTML = '<span class="text-slate-400">Genera o selecciona un lote para empezar.</span>'; return; }
-  if (!n) { box.innerHTML = '<span class="text-emerald-700 font-semibold">✓ Todos los contactos de este lote ya fueron abiertos.</span>'; return; }
-  const p = n.g.eff || {};
-  box.innerHTML = `<div class="flex flex-wrap items-center gap-x-3 gap-y-1"><span class="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Siguiente</span>
-    <span class="font-semibold">${esc(n.c.codigo)} // ${esc(n.c.razon)}</span><span class="text-slate-500 tabular-nums">${esc(fmtPhone(n.c.telefono))}</span>
-    <span class="ml-auto text-[11.5px] text-slate-500 tabular-nums">⏰ ${n.g.sched ? fmtWhen(n.g.sched) : '—'}</span></div>
-    <div class="text-[11px] text-slate-500 mt-1 tabular-nums">Intervalo ${Math.round((p.gap || 0) / 1000)} s · escritura ${Math.round((p.typ || 0) / 1000)} s${p.brk ? ` · <b class="text-amber-700">descanso ${Math.round(p.brk / 60000)} min antes</b>` : ''} · ${n.g.gen?.bytes || 0} B</div>`;
+  if (!l) { box.innerHTML = '<div class="text-slate-400 text-[13px] py-6 text-center">Genera un lote para empezar</div>'; return; }
+  if (!n) { box.innerHTML = '<div class="text-emerald-700 font-semibold text-[13px] py-6 text-center">✓ Lote terminado</div>'; return; }
+  const ini = (n.c.razon || '?').replace(/[^A-Za-zÁÉÍÓÚÑ0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const gen = n.g.gen || {};
+  box.innerHTML = `
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 rounded-full bg-indigo-100 text-indigo-700 grid place-items-center font-bold shrink-0">${esc(ini)}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold truncate">${esc(n.c.razon)}</div>
+        <div class="text-[12px] text-slate-500 tabular-nums">⏰ ${n.g.sched ? fmtWhen(n.g.sched) : '—'} · ${esc(fmtPhone(n.c.telefono))}${n.g.eff?.brk ? ' · ☕ tras descanso' : ''}</div>
+      </div>
+      <button class="btn btn-ghost btn-icon" data-regen="${esc(n.cod)}" title="Otro texto">↻</button>
+    </div>
+    <div class="wa-bg rounded-xl p-3 mt-3">
+      <div class="wa-bubble ml-auto max-w-[96%] px-3 py-2 text-[12.5px] leading-relaxed whitespace-pre-wrap break-words shadow-sm max-h-60 overflow-y-auto scroll-thin">${esc(gen.text || '')}</div>
+    </div>
+    <div class="text-[11px] text-slate-400 mt-1.5 text-right">${gen.bytes || 0} B · ${gen.chars || 0} caracteres</div>`;
 }
 const estadoBadge = g => g.enviado ? `<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✓ Enviado ${fmtTime(g.fechaEnvio)}</span>`
   : g.estadoEnvio === 'No contactar' ? '<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">🚫 No contactar</span>'
@@ -1380,7 +1415,7 @@ const estadoBadge = g => g.enviado ? `<span class="text-[10.5px] font-bold px-2 
   : '<span class="text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Pendiente</span>';
 function renderQueue() {
   const l = getSendLote(), q = $('#queue');
-  if (!l) { q.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-slate-400">Sin lote seleccionado</td></tr>'; return; }
+  if (!l) { q.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-400">Sin lote</td></tr>'; return; }
   const nextCod = lotePending(l)[0];
   q.innerHTML = l.codigos.map((cod, i) => {
     const c = S.clients[cod], g = S.gestion[cod] || {}, gen = g.gen || {};
@@ -1388,16 +1423,68 @@ function renderQueue() {
     const when = g.enviado ? fmtWhen(g.fechaEnvio) : (g.sched ? fmtWhen(g.sched) : '—');
     return `<tr class="border-b border-slate-100 align-top ${cls}" data-qrow="${esc(cod)}">
       <td class="py-2 pr-2 text-slate-400 tabular-nums">${i + 1}</td>
-      <td class="py-2 pr-2 min-w-[150px]"><b class="text-indigo-700">${esc(cod)}</b><div class="text-slate-600 leading-tight">${esc(c?.razon)}</div></td>
-      <td class="py-2 pr-2 tabular-nums whitespace-nowrap">${esc(when)}${g.eff?.brk && !g.enviado ? '<div class="text-[10px] text-amber-700">☕ tras descanso</div>' : ''}</td>
-      <td class="py-2 pr-2 min-w-[240px]"><div class="clamp2 whitespace-pre-wrap cursor-pointer text-slate-700" data-expand title="Clic para ver completo">${esc(gen.text || '—')}</div></td>
-      <td class="py-2 pr-2 tabular-nums whitespace-nowrap"><b>${gen.bytes || 0}</b> B<div class="text-[10.5px] text-slate-500">${gen.chars || 0} car. · P${(gen.tpl ?? -1) + 1}</div></td>
+      <td class="py-2 pr-2 min-w-[150px]"><div class="font-semibold leading-tight">${esc(c?.razon)}</div><div class="text-[10.5px] text-slate-400">${esc(cod)}</div></td>
+      <td class="py-2 pr-2 tabular-nums whitespace-nowrap text-slate-600">${esc(when.replace(/:\d\d$/, ''))}${g.eff?.brk && !g.enviado ? ' ☕' : ''}</td>
+      <td class="py-2 pr-2 min-w-[220px]"><div class="clamp1 whitespace-pre-wrap cursor-pointer text-slate-600" data-expand title="${gen.bytes || 0} B · ${gen.chars || 0} caracteres · clic para ver">${esc(gen.text || '—')}</div></td>
       <td class="py-2 pr-2">${estadoBadge(g)}</td>
-      <td class="py-2 text-right">${g.enviado || BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="text-[11.5px] font-semibold text-indigo-600 hover:underline whitespace-nowrap" data-regen="${esc(cod)}">↻ Regenerar</button>`}</td>
+      <td class="py-2 text-right">${g.enviado || BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="w-7 h-7 rounded-lg text-indigo-600 hover:bg-indigo-50" data-regen="${esc(cod)}" title="Otro texto">↻</button>`}</td>
     </tr>`;
   }).join('');
 }
-function renderAllRunner() { renderKpis(); renderNextBox(); renderQueue(); renderClock(); renderDirty(); }
+function renderAllRunner() { renderKpis(); renderNextBox(); renderQueue(); renderClock(); renderDirty(); renderTimeline(); }
+
+/* =========================================================
+   LÍNEA DE TIEMPO INTERACTIVA
+   ========================================================= */
+function timelineDays() {
+  const now = Date.now(), dias = [todayKey(now)];
+  const l = getSendLote();
+  const futuros = lotePending(l).map(c => S.gestion[c].sched).filter(Boolean).map(t => todayKey(t)).filter(k => k > dias[0]).sort();
+  if (futuros.length) dias.push(futuros[0]);
+  return dias;
+}
+function renderTimeline() {
+  const svg = $('#timeline'); if (!svg || $('#tab-envio').classList.contains('hidden')) return;
+  const dias = timelineDays();
+  if (!dias.includes(S.ui.tlDay)) S.ui.tlDay = dias[0];
+  const dia = S.ui.tlDay;
+  $('#tlDays').innerHTML = dias.map((d, i) => { const dt = new Date(d + 'T12:00'); const lbl = i === 0 ? 'Hoy' : `${DIAS[dt.getDay()]} ${dt.getDate()}`;
+    return `<button data-tlday="${d}" class="px-3 py-1 ${i ? 'border-l border-slate-200 ' : ''}${d === dia ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}">${lbl}</button>`; }).join('');
+  const W = Math.max(320, svg.clientWidth || 1000), H = 130, padL = 16, padR = 16, y = 62;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.removeAttribute('preserveAspectRatio');
+  const base = new Date(dia + 'T12:00').getTime();
+  const s0 = dayAt(base, S.cad.start), e0 = dayAt(base, S.cad.end), span = Math.max(1, e0 - s0);
+  const X = t => padL + Math.min(1, Math.max(0, (t - s0) / span)) * (W - padL - padR);
+  let g = `<rect x="${padL}" y="${y - 3}" width="${W - padL - padR}" height="6" rx="3" fill="#EEF2F7"/>`;
+  // Almuerzo
+  if (S.cad.lunch) { const a = X(dayAt(base, S.cad.lunchStart)), b = X(dayAt(base, S.cad.lunchEnd));
+    g += `<rect x="${a}" y="${y - 26}" width="${Math.max(2, b - a)}" height="52" rx="6" fill="#FEF3C7" opacity=".7"/><text x="${(a + b) / 2}" y="${y - 30}" text-anchor="middle" font-size="10" fill="#B45309">🍽 almuerzo</text>`; }
+  // Horas
+  for (let h = Math.ceil(hm(S.cad.start) / 60); h <= Math.floor(hm(S.cad.end) / 60); h++) {
+    const x = X(dayAt(base, `${pad(h)}:00`));
+    g += `<line x1="${x}" y1="${y + 10}" x2="${x}" y2="${y + 16}" stroke="#CBD5E1"/><text x="${x}" y="${H - 14}" text-anchor="middle" font-size="10.5" fill="#94A3B8">${h}h</text>`;
+  }
+  const now = Date.now(), esHoy = dia === todayKey(now);
+  // Cupo lleno: franja roja hasta que se libera
+  const q = quotaInfo(now);
+  if (esHoy && q.used >= q.cap && q.release) { const a = X(Math.max(now, s0)), b = X(q.release);
+    if (b > a) g += `<rect x="${a}" y="${y - 18}" width="${b - a}" height="36" rx="6" fill="#FFE4E6" opacity=".8"/><text x="${(a + b) / 2}" y="${y + 30}" text-anchor="middle" font-size="10" fill="#BE123C">cupo lleno</text>`; }
+  // Puntos
+  const puntos = [];
+  for (const [cod, x] of Object.entries(S.gestion)) if (x.enviado && x.fechaEnvio && todayKey(x.fechaEnvio) === dia) puntos.push({ cod, t: x.fechaEnvio, tipo: 'env' });
+  const l = getSendLote(), sig = lotePending(l)[0];
+  for (const cod of lotePending(l)) { const x = S.gestion[cod]; if (x.sched && todayKey(x.sched) === dia) puntos.push({ cod, t: x.sched, tipo: cod === sig ? 'sig' : 'prog' }); }
+  const col = { env: '#10B981', prog: '#6366F1', sig: '#F59E0B' };
+  puntos.sort((a, b) => a.t - b.t).forEach(p => {
+    const x = X(p.t);
+    if (p.tipo === 'sig') g += `<circle cx="${x}" cy="${y}" r="12" fill="#F59E0B" opacity=".25"><animate attributeName="r" values="8;14;8" dur="1.8s" repeatCount="indefinite"/></circle>`;
+    g += `<circle class="dot" data-cod="${esc(p.cod)}" data-t="${p.t}" data-tipo="${p.tipo}" cx="${x}" cy="${y}" r="${p.tipo === 'sig' ? 7 : 5.5}" fill="${col[p.tipo]}" stroke="#fff" stroke-width="2"/>`;
+  });
+  if (esHoy && now >= s0 && now <= e0) { const x = X(now); g += `<line x1="${x}" y1="${y - 34}" x2="${x}" y2="${y + 22}" stroke="#E11D48" stroke-width="1.5" stroke-dasharray="3 3"/><text x="${x}" y="${y - 38}" text-anchor="middle" font-size="10" font-weight="700" fill="#E11D48">ahora</text>`; }
+  if (!puntos.length) g += `<text x="${W / 2}" y="${y - 14}" text-anchor="middle" font-size="12" fill="#94A3B8">Sin envíos este día</text>`;
+  svg.innerHTML = g;
+}
+
 function regenOne(cod) {
   const l = getSendLote(), g = S.gestion[cod]; if (!g || g.enviado) return;
   const loteOf = loteById(g.loteId) || l;
@@ -1517,7 +1604,7 @@ function renderCRM(resetLimit) {
   $('#crmSummary').innerHTML = `Mostrando <b>${Math.min(cods.length, crmLimit)}</b> de <b>${cods.length}</b> · <span class="text-emerald-600 font-semibold">${sentInView} enviados</span> · ${tipified} tipificados de ${viewAll.length}`;
   if (!cods.length) {
     list.innerHTML = ''; empty.classList.remove('hidden');
-    empty.innerHTML = !S.lotes.length ? '📭 Aún no hay lotes. Ve a <b>Campaña y envío</b>, carga tu Excel y genera el primer lote de 30.' : S.ui.view === 'today' && !viewAll.length ? '📅 No hay lote generado hoy. Elige un lote anterior o el historial completo.' : '🔎 Sin resultados para este filtro.';
+    empty.innerHTML = !S.lotes.length ? '📭 Aún no hay lotes. Ve a <b>Envío</b>, carga tu base y genera el primer lote.' : S.ui.view === 'today' && !viewAll.length ? '📅 No hay lote generado hoy. Elige un lote anterior o el historial completo.' : '🔎 Sin resultados para este filtro.';
     $('#crmMore').classList.add('hidden'); return;
   }
   empty.classList.add('hidden');
@@ -1632,11 +1719,12 @@ function importBackup(file) {
    RENDER GENERAL Y EVENTOS
    ========================================================= */
 function setTab(t) {
+  if (t === 'campana' || !['envio', 'mensajes', 'crm', 'ajustes'].includes(t)) t = 'envio';
   S.ui.tab = t; save();
   $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
-  $('#tab-campana').classList.toggle('hidden', t !== 'campana');
-  $('#tab-crm').classList.toggle('hidden', t !== 'crm');
+  ['envio', 'mensajes', 'crm', 'ajustes'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
   if (t === 'crm') renderCRM(true);
+  if (t === 'envio') renderTimeline();
 }
 function syncInputs() {
   $$('[data-pol]').forEach(el => { const v = S.policy[el.dataset.pol]; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; });
@@ -1650,9 +1738,7 @@ function renderDest() {
   const app = isApp();
   $$('#destSel button').forEach(b => { const on = b.dataset.dest === (app ? 'app' : 'web'); b.className = (b.dataset.dest === 'web' ? 'border-l border-slate-200 ' : '') + 'px-3 py-1.5 ' + (on ? 'bg-emerald-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
   $('#btnTestApp').classList.toggle('hidden', !app);
-  $('#destHelp').innerHTML = app
-    ? 'Abre cada chat en la <b>app WhatsApp de tu PC</b> con su mensaje único ya escrito; tú solo presionas <b>Enter</b>. <b>Primera vez:</b> pulsa 🔓 y en el aviso del navegador marca <b>“Permitir siempre…”</b>. Si el navegador no deja abrirla sola, suena un aviso y aparece el botón verde: un clic y continúa.'
-    : 'Abre WhatsApp Web en una única pestaña reutilizable. Permite ventanas emergentes para esta página.';
+  $('#destHelp').textContent = app ? 'La primera vez marca “Permitir siempre” en el aviso del navegador.' : 'Permite ventanas emergentes para esta página.';
 }
 function renderAll() {
   renderEjecutivos(); internalWarn();
@@ -1695,7 +1781,6 @@ function switchLote(id) {
   if (R.running && !confirm('Hay una cadencia en curso. ¿Cambiar de lote? (se detendrá)')) { renderLotes(); return; }
   stopRunner(); S.ui.sendLoteId = id; planLote(); save(); renderAll();
 }
-$('#loteList').addEventListener('click', e => { const b = e.target.closest('[data-lote]'); if (b) switchLote(b.dataset.lote); });
 $('#sendLote').addEventListener('change', e => switchLote(e.target.value));
 // Plantillas
 $('#msg').addEventListener('input', onMsgInput);
@@ -1777,7 +1862,7 @@ $$('[data-recalc]').forEach(b => b.addEventListener('click', () => {
   toast('Programación y textos recalculados', 'success');
 }));
 // Ejecución
-$('#btnStart').addEventListener('click', startRunner);
+$('#btnStart').addEventListener('click', () => { if (R.running) { stopRunner(); toast('En pausa'); } else startRunner(); });
 $('#btnPause').addEventListener('click', () => { stopRunner(); toast('Cadencia en pausa'); });
 $('#btnNow').addEventListener('click', () => {
   if (!nextPending()) { toast('No hay contactos pendientes en este lote.', 'warn'); return; }
@@ -1791,6 +1876,59 @@ $('#queue').addEventListener('click', e => {
 });
 $('#destSel').addEventListener('click', e => { const b = e.target.closest('[data-dest]'); if (!b) return; S.settings.destino = b.dataset.dest; save(); renderDest(); if (S.ui.tab === 'crm') renderCRM(); });
 $('#btnTestApp').addEventListener('click', () => { triggerProtocol('whatsapp://'); toast('Si el navegador pregunta, marca “Permitir siempre” y pulsa Abrir.', 'ok', 5000); });
+
+// Perfiles rápidos
+const PRESETS = {
+  prudente: { pol: { max24h: 20, warmup: false }, cad: { gapMinM: 12, gapMaxM: 60, fatMin: 3, fatMax: 5, brkMin: 15, brkMax: 30, repartir: true } },
+  recomendado: { pol: { max24h: 30, warmup: false }, cad: { gapMinM: 7, gapMaxM: 45, fatMin: 4, fatMax: 7, brkMin: 10, brkMax: 25, repartir: true } },
+  nuevo: { pol: { max24h: 30, warmup: true }, cad: { gapMinM: 10, gapMaxM: 50, fatMin: 3, fatMax: 6, brkMin: 15, brkMax: 30, repartir: true } },
+};
+function presetActual() {
+  for (const [k, p] of Object.entries(PRESETS))
+    if (Object.entries(p.pol).every(([a, v]) => S.policy[a] === v) && Object.entries(p.cad).every(([a, v]) => S.cad[a] === v)) return k;
+  return '';
+}
+function renderPresets() { const k = presetActual(); $$('[data-preset]').forEach(b => b.classList.toggle('on', b.dataset.preset === k)); }
+$('#presets').addEventListener('click', e => {
+  const b = e.target.closest('[data-preset]'); if (!b) return;
+  const p = PRESETS[b.dataset.preset];
+  Object.assign(S.policy, p.pol); Object.assign(S.cad, p.cad);
+  if (b.dataset.preset === 'nuevo' && !S.policy.warmupStart) S.policy.warmupStart = todayKey();
+  syncInputs(); planLote({ regenTimes: true }); save(true); renderAllRunner();
+  toast(`Perfil ${b.querySelector('b').textContent.replace(/^\S+\s/, '')} aplicado`, 'success');
+});
+// Botones − / + : cambian el valor y disparan el mismo evento que escribirlo
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-stepper]'); if (!b) return;
+  const inp = b.parentElement.querySelector('input'); const st = parseFloat(inp.step) || 1;
+  let v = (parseFloat(inp.value) || 0) + (b.dataset.stepper === '+' ? st : -st);
+  if (inp.min !== '') v = Math.max(+inp.min, v); if (inp.max !== '') v = Math.min(+inp.max, v);
+  inp.value = Math.round(v * 100) / 100;
+  inp.dispatchEvent(new Event('change', { bubbles: true }));
+});
+// Línea de tiempo: detalle al pasar el mouse y salto a la fila al hacer clic
+$('#tlDays').addEventListener('click', e => { const b = e.target.closest('[data-tlday]'); if (!b) return; S.ui.tlDay = b.dataset.tlday; renderTimeline(); });
+$('#timeline').addEventListener('mousemove', e => {
+  const d = e.target.closest('.dot'), tip = $('#tlTip');
+  if (!d) { tip.classList.add('hidden'); return; }
+  const c = S.clients[d.dataset.cod] || {}, tipo = { env: '✓ Enviado', prog: 'Programado', sig: '➜ Siguiente' }[d.dataset.tipo];
+  tip.innerHTML = `<b>${fmtTime(+d.dataset.t)}</b> · ${esc(c.razon || d.dataset.cod)}<br><span class="opacity-70">${tipo}</span>`;
+  const box = $('#timeline').getBoundingClientRect(), r = d.getBoundingClientRect();
+  tip.classList.remove('hidden');
+  tip.style.left = Math.min(box.width - tip.offsetWidth, Math.max(0, r.left - box.left - tip.offsetWidth / 2 + 6)) + 'px';
+  tip.style.top = (r.top - box.top - tip.offsetHeight - 8) + 'px';
+});
+$('#timeline').addEventListener('mouseleave', () => $('#tlTip').classList.add('hidden'));
+$('#timeline').addEventListener('click', e => {
+  const d = e.target.closest('.dot'); if (!d) return;
+  const row = document.querySelector(`[data-qrow="${CSS.escape(d.dataset.cod)}"]`);
+  if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.remove('row-flash'); void row.offsetWidth; row.classList.add('row-flash'); }
+});
+$('#nextBox').addEventListener('click', e => {
+  const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
+  const ex = e.target.closest('[data-expand]'); if (ex) ex.classList.toggle('open');
+});
+let rsT; window.addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(renderTimeline, 150); });
 
 // CRM
 $('#viewSel').addEventListener('change', e => { S.ui.view = e.target.value; save(); renderCRM(true); });
@@ -1851,11 +1989,11 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) tick
 // Reloj visible aunque esté detenido (cuenta regresiva / estado de jornada)
 setInterval(() => { if (!R.running) renderClock(); }, 1000);
 // El cupo de 24 h se libera con el paso del tiempo: refrescar indicadores cada 15 s
-setInterval(() => { try { renderKpis(); } catch (e) {} }, 15000);
+setInterval(() => { try { renderKpis(); renderTimeline(); } catch (e) {} }, 15000);
 
 // INIT
 syncInputs();
-setTab(S.ui.tab || 'campana');
+setTab(S.ui.tab || 'envio');
 // Al recargar se conserva la programación guardada; solo se recalcula si falta o ya venció
 { const l0 = getSendLote(), n0 = l0 && nextPending(); if (n0 && (S.run.needReplan || !n0.g.sched || !n0.g.gen || n0.g.sched < Date.now())) { if (S.run.needReplan) ensurePlans(l0, true); planLote(); } S.run.needReplan = false; }
 renderAll();
