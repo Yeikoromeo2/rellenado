@@ -28,6 +28,7 @@ interface Ajustes {
   gapMin: number; gapMax: number; escMin: number; escMax: number;
   fatMin: number; fatMax: number; desMin: number; desMax: number;
   modo: string; piso: number; frecuenciaDias: number; topeDiario: number;
+  maximo24h: number; repartir: boolean; almuerzo: boolean; almuerzoInicio: string; almuerzoFin: string;
   soloConsentimiento: boolean; incluirSalida: boolean; miEmpresa: string;
   zona: number; tamano: number;
 }
@@ -38,6 +39,8 @@ interface Entrada {
   ahoraLocal?: string; ejecutivo?: string; tamano?: number; loteNumero?: number;
   clientes: ClienteIn[]; asignados?: string[]; noContactar?: string[];
   ultimosEnvios?: EnvioPrevio[]; enviadosHoy?: number;
+  /** Horas locales ("AAAA-MM-DD HH:mm:ss") de los envíos de las últimas 48 h: base del cupo de 24 h móviles */
+  enviosRecientes?: string[];
 }
 interface Generado { texto: string; plantilla: number; combo: string; bytes: number; caracteres: number; }
 interface ItemLote {
@@ -113,6 +116,7 @@ function generar(e: Entrada, cfg: Config): SalidaLote {
     if (telefonosVistos.has(c.telefono)) { om.telefonoRepetido++; continue; }
     telefonosVistos.add(c.telefono); elegidos.push(c);
   }
+  const usadas = (e.enviosRecientes || []).map(x => parseLocal(x)).filter((x): x is number => x !== null && x > ahora - DIA && x <= ahora).length;
   if (!elegidos.length) {
     const s = salidaError("No hay contactos disponibles que cumplan las reglas (No contactar, consentimiento, frecuencia).");
     s.omitidos = om; return s;
@@ -124,7 +128,8 @@ function generar(e: Entrada, cfg: Config): SalidaLote {
   for (const c of elegidos) { const g = componer(c, ejec, cfg, previo); generados.push(g); previo = g; }
 
   // --- Programación dentro de la jornada ---
-  const plan = planificar(generados, cfg, ahora, Math.max(0, e.enviadosHoy || 0));
+  const recientes = (e.enviosRecientes || []).map(x => parseLocal(x)).filter((x): x is number => x !== null && x <= ahora).sort((x, y) => x - y);
+  const plan = planificar(generados, cfg, ahora, recientes);
 
   const items: ItemLote[] = elegidos.map((c, i) => ({
     codigo: c.codigo, razonSocial: c.razon, telefono: c.telefono,
@@ -150,6 +155,7 @@ function generar(e: Entrada, cfg: Config): SalidaLote {
     mensaje: `${loteNombre}: ${items.length} contactos firmados por ${ejec.nombre}. ` +
       (resumen.hoy ? `${resumen.hoy} hoy (cierre ${resumen.cierreHoy})` : "Ninguno hoy") +
       (resumen.reprogramados ? `, ${resumen.reprogramados} reprogramados al siguiente día hábil` : "") +
+      `. Cupo 24 h: ${usadas}/${a.maximo24h} usados` + (plan.tope ? " (los siguientes salen al liberarse cupos)" : "") +
       (omTxt ? `. Omitidos por protección: ${omTxt}` : "") + ".",
   };
 }
@@ -235,7 +241,7 @@ function gaussiana(): number { let u = 0, v = 0; while (!u) u = Math.random(); w
 function azar(a: number, b: number): number { return a + Math.random() * (b - a); }
 function azarEntero(a: number, b: number): number { return Math.floor(azar(Math.min(a, b), Math.max(a, b) + 1)); }
 function intervaloMs(a: Ajustes): number {
-  const min = Math.max(5, a.gapMin), max = Math.max(min, a.gapMax), media = (min + max) / 2, sd = (max - min) / 5 || 1;
+  const min = Math.max(60, a.gapMin), max = Math.max(min, a.gapMax), media = (min + max) / 2, sd = (max - min) / 5 || 1;
   let x = media, n = 0;
   do { x = media + gaussiana() * sd; } while ((x < min || x > max) && ++n < 25);
   return Math.round(Math.min(max, Math.max(min, x)) * 1000 + azar(0, 999));
@@ -250,7 +256,32 @@ function siguienteApertura(t: number, a: Ajustes): number {
   for (let i = 0; i < 14; i++) { d += DIA; if (habil(d, a)) return aLas(d, a.inicio); }
   return aLas(d, a.inicio);
 }
-function planificar(gen: Generado[], cfg: Config, ahora: number, enviadosHoy: number): Plan {
+/* ---- Cupo de 24 horas móviles ---- */
+function enVentana(t: number, horas: number[]): number { let n = 0; for (const x of horas) if (x > t - DIA && x <= t) n++; return n; }
+function liberaCupo(t: number, horas: number[], cupo: number): number {
+  const v = horas.filter(x => x > t - DIA && x <= t).sort((x, y) => x - y);
+  return v.length < cupo ? t : v[v.length - cupo] + DIA + 1000;
+}
+function enAlmuerzo(t: number, a: Ajustes): boolean { return a.almuerzo && t >= aLas(t, a.almuerzoInicio) && t < aLas(t, a.almuerzoFin); }
+/** Siguiente momento permitido: jornada (inicio nunca exacto), almuerzo y cupo de 24 h */
+function permitido(t: number, horas: number[], a: Ajustes, marca: { cupo: boolean }): number {
+  for (let i = 0; i < 80; i++) {
+    const t0 = t;
+    if (!(habil(t, a) && t >= aLas(t, a.inicio) && t < aLas(t, a.fin))) t = siguienteApertura(t, a) + azar(3, 25) * 60000;
+    else if (enAlmuerzo(t, a)) t = aLas(t, a.almuerzoFin) + azar(2, 12) * 60000;
+    else if (enVentana(t, horas) >= a.maximo24h) { t = liberaCupo(t, horas, a.maximo24h) + azar(3, 20) * 60000; marca.cupo = true; }
+    if (t === t0) break;
+  }
+  return Math.round(t);
+}
+/** Intervalo irregular alrededor del ideal (log-normal), nunca parecido al anterior */
+function intervaloRepartido(idealMs: number, previo: number, a: Ajustes): number {
+  const lo = Math.max(60, a.gapMin) * 1000, hi = Math.max(lo, Math.min(Math.max(lo, a.gapMax * 1000), idealMs * 2.4));
+  let x = lo;
+  for (let k = 0; k < 20; k++) { x = Math.min(hi, Math.max(lo, idealMs * Math.exp(gaussiana() * 0.45 - 0.1))); if (x <= lo) x = lo * (1 + Math.random() * 0.8); if (!previo || Math.abs(x - previo) / previo > 0.25) break; }
+  return Math.round(x + azar(0, 59999));
+}
+function planificar(gen: Generado[], cfg: Config, ahora: number, recientes: number[]): Plan {
   const a = cfg.ajustes;
   const piso = Math.max(5, a.piso) * 1000;
   // Duraciones base: intervalo humano + escritura + descanso por fatiga
@@ -262,42 +293,40 @@ function planificar(gen: Generado[], cfg: Config, ahora: number, enviadosHoy: nu
     dur[i] = { gap: intervaloMs(a), esc: Math.round(g.caracteres * azar(a.escMin, Math.max(a.escMin, a.escMax))), des };
     desde++;
   });
-  let t = ahora;
-  if (!(habil(t, a) && t >= aLas(t, a.inicio) && t < aLas(t, a.fin))) t = siguienteApertura(t, a);
-  const conteo = new Map<string, number>(); conteo.set(claveDia(ahora), enviadosHoy);
-  let tope = false;
-  while (a.topeDiario > 0 && (conteo.get(claveDia(t)) || 0) >= a.topeDiario) { t = siguienteApertura(aLas(t, a.fin), a); tope = true; }
-  const inicio = t, primerDia = claveDia(t);
-  let fin = aLas(t, a.fin);
-  // Ajuste proporcional: mayor factor ≤1 con el que todo cabe hoy sin bajar del piso
-  let factor = 1;
-  if (a.modo === "ajuste") {
-    const disponible = fin - t - 15000;
-    const total = (f: number): number => dur.reduce((s, d) => s + d.esc + Math.max(piso, d.gap * f) + (d.des ? Math.max(60000, d.des * f) : 0), 0);
-    const cupoHoy = a.topeDiario > 0 ? a.topeDiario - (conteo.get(primerDia) || 0) : dur.length;
-    if (cupoHoy >= dur.length && total(1) > disponible) {
-      let lo = 0, hi = 1;
-      for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (total(mid) <= disponible) lo = mid; else hi = mid; }
-      factor = lo;
-    }
-  }
+  const marca = { cupo: false };
   const horas: number[] = [], descanso: boolean[] = [];
-  let hoyCuenta = 0, hoyFin = t;
-  dur.forEach(d => {
-    const f = claveDia(t) === primerDia ? factor : 1;
-    const gap = Math.max(piso, Math.round(d.gap * f));
-    const des = d.des ? Math.max(60000, Math.round(d.des * f)) : 0;
-    t += des + gap + d.esc;
-    if (t > fin) { const ap = siguienteApertura(fin, a); t = ap + Math.min(gap, 90000) + d.esc; fin = aLas(ap, a.fin); }
-    while (a.topeDiario > 0 && (conteo.get(claveDia(t)) || 0) >= a.topeDiario) {
-      const ap = siguienteApertura(aLas(t, a.fin), a); t = ap + Math.min(gap, 90000) + d.esc; fin = aLas(ap, a.fin); tope = true;
-    }
-    conteo.set(claveDia(t), (conteo.get(claveDia(t)) || 0) + 1);
+  const todas = (): number[] => recientes.concat(horas);
+  let t = permitido(ahora, recientes, a, marca);
+  const inicio = t, primerDia = claveDia(t);
+  // Ajuste proporcional (solo sin "repartir")
+  let factor = 1;
+  if (!a.repartir && a.modo === "ajuste") {
+    const disponible = aLas(t, a.fin) - t - 15000;
+    const total = (f: number): number => dur.reduce((s, d) => s + d.esc + Math.max(piso, d.gap * f) + (d.des ? Math.max(60000, d.des * f) : 0), 0);
+    if (total(1) > disponible) { let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (total(mid) <= disponible) lo = mid; else hi = mid; } factor = lo; }
+  }
+  let hoyCuenta = 0, hoyFin = t, previo = 0;
+  dur.forEach((d, i) => {
+    let gap: number;
+    if (a.repartir) {
+      const restantes = dur.length - i;
+      const huecos = Math.max(1, Math.min(restantes, a.maximo24h - enVentana(t, todas())));
+      const alm = a.almuerzo && t < aLas(t, a.almuerzoInicio) ? (minutos(a.almuerzoFin) - minutos(a.almuerzoInicio)) * 60000 : 0;
+      const desc = dur.slice(i, i + huecos).reduce((s, x) => s + x.des, 0);
+      gap = intervaloRepartido(Math.max(60000, (aLas(t, a.fin) - t - alm - desc) / huecos), previo, a);
+    } else gap = Math.max(piso, Math.round(d.gap * (claveDia(t) === primerDia ? factor : 1)));
+    previo = gap;
+    const des = d.des ? Math.max(60000, Math.round(d.des * (a.repartir ? 1 : factor))) : 0;
+    t = permitido(t + des + gap + d.esc, todas(), a, marca);
+    // Si el cupo empujó la hora, que no quede pegada al envío anterior
+    const todasAhora = todas(), anterior = todasAhora.length ? Math.max(...todasAhora) : 0;
+    const sep = Math.max(60, a.gapMin) * 1000 * (1 + Math.random() * 0.8);
+    if (anterior && t - anterior < sep) t = permitido(anterior + sep, todasAhora, a, marca);
     horas.push(t); descanso.push(des > 0);
     if (claveDia(t) === primerDia) { hoyCuenta++; hoyFin = t; }
   });
   const horasHoy = (hoyFin - inicio) / 3600000;
-  return { horas, descanso, inicio, factor, ritmo: horasHoy > 0 ? Math.round((hoyCuenta / horasHoy) * 10) / 10 : 0, tope };
+  return { horas, descanso, inicio, factor, ritmo: horasHoy > 0 ? Math.round((hoyCuenta / horasHoy) * 10) / 10 : 0, tope: marca.cupo };
 }
 
 /* =================== Configuración (hojas de CRM_Motor.xlsx) =================== */
@@ -337,12 +366,14 @@ function leerConfig(wb: ExcelScript.Workbook): Config {
   const bool = (k: string, d: boolean): boolean => aj[k] === undefined || aj[k] === "" ? d : verdadero(aj[k]);
   const ajustes: Ajustes = {
     inicio: aj.inicio || "09:00", fin: aj.fin || "18:00", sabado: bool("incluir_sabados", false),
-    gapMin: num("intervalo_min_seg", 45), gapMax: num("intervalo_max_seg", 180),
+    gapMin: num("intervalo_min_minutos", 7) * 60, gapMax: num("intervalo_max_minutos", 45) * 60,
     escMin: num("escritura_min_ms", 40), escMax: num("escritura_max_ms", 90),
-    fatMin: num("fatiga_cada_min", 6), fatMax: num("fatiga_cada_max", 10),
-    desMin: num("descanso_min_minutos", 4), desMax: num("descanso_max_minutos", 10),
+    fatMin: num("fatiga_cada_min", 4), fatMax: num("fatiga_cada_max", 7),
+    desMin: num("descanso_min_minutos", 10), desMax: num("descanso_max_minutos", 25),
     modo: /ajuste/i.test(aj.modo_si_no_cabe || "") ? "ajuste" : "desborde", piso: num("piso_minimo_seg", 30),
-    frecuenciaDias: num("frecuencia_dias", 7), topeDiario: num("tope_diario", 40),
+    frecuenciaDias: num("frecuencia_dias", 7), topeDiario: num("tope_diario", 0),
+    maximo24h: Math.max(1, num("maximo_24h", 30)), repartir: bool("repartir_en_jornada", true),
+    almuerzo: bool("pausa_almuerzo", true), almuerzoInicio: aj.almuerzo_inicio || "13:00", almuerzoFin: aj.almuerzo_fin || "14:00",
     soloConsentimiento: bool("solo_con_consentimiento", false), incluirSalida: bool("incluir_opcion_salida", true),
     miEmpresa: aj.mi_empresa || "", zona: num("zona_horaria", -5), tamano: num("tamano_lote", 30),
   };

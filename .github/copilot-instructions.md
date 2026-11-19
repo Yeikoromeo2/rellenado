@@ -22,7 +22,7 @@ Proyecto comercial de difusión por WhatsApp y rellenado de un Excel compartido 
    - Lista No contactar.
    - Consentimiento (opcional).
    - Máximo 1 mensaje por número cada N días (7 por defecto).
-   - Tope diario (40 por defecto).
+   - Máximo 30 envíos en cualquier periodo de 24 h (ventana móvil, no por día calendario), con intervalos irregulares de 7–45 min.
    - Jornada 09:00–18:00, de lunes a viernes.
    - Opción de salida "respondan BAJA".
 9. **Envío:** lo hace una persona (abre el chat y presiona Enter). No agregar automatizaciones de WhatsApp no oficiales (Baileys, whatsapp-web.js, WAHA, etc.); el envío automático solo con la API oficial de WhatsApp Business (Meta).

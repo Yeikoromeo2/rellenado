@@ -117,6 +117,7 @@
         <span>🔔 Turno de <b id="blockedWho"></b>. Haz clic para abrir el chat con su mensaje único.</span>
         <button id="blockedOpen" class="btn btn-green ml-auto !py-2 !px-4 !text-[14px]">💬 Abrir en WhatsApp</button>
       </div>
+      <div id="quotaBanner" class="hidden mb-3 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-[12.5px] text-indigo-900"></div>
       <div id="healthBanner" class="hidden mb-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-3 text-[13px]"></div>
       <div id="dirtyBanner" class="hidden mb-3 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-[12.5px] flex flex-wrap items-center gap-2">
         <span>✏️ Cambiaste plantillas o bloques. Los mensajes pendientes aún usan la versión anterior.</span>
@@ -138,7 +139,7 @@
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Pendientes</div><div id="kPend" class="text-xl font-bold">0</div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Ritmo prom.</div><div id="kRate" class="text-xl font-bold">—</div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Cierre proyectado</div><div id="kEnd" class="text-xl font-bold tabular-nums">—</div></div>
-            <div class="rounded-lg border border-slate-200 px-3 py-2"><div class="lbl">Jornada</div><div id="kWin" class="text-xl font-bold tabular-nums">09:00–18:00</div></div>
+            <div class="rounded-lg border border-slate-200 px-3 py-2" title="Envíos en las últimas 24 horas (ventana móvil)"><div class="lbl">Cupo 24 h</div><div id="kCupo" class="text-xl font-bold tabular-nums">0/30</div><div id="kCupoSub" class="text-[10.5px] text-slate-500 leading-tight"></div></div>
             <div class="rounded-lg border border-slate-200 px-3 py-2" title="Contactos que pidieron no recibir más mensajes en los últimos 7 días, sobre los enviados en ese periodo"><div class="lbl">Bajas 7 días</div><div id="kBajas" class="text-xl font-bold tabular-nums">0%</div></div>
           </div>
           <div id="fitBox" class="rounded-lg px-3 py-2 text-[12.5px] bg-slate-50 border border-slate-200 text-slate-600">—</div>
@@ -191,10 +192,28 @@
           <p class="text-[11.5px] text-slate-500 mb-3">Lo que realmente protege tu número: permiso del cliente, poca frecuencia y una salida fácil.</p>
           <div class="space-y-3 text-[12.5px]">
             <div class="flex items-center gap-2 flex-wrap">Máx. 1 mensaje por número cada <input type="number" min="0" class="inp !w-16" data-pol="freqDays"> días</div>
-            <div class="flex items-center gap-2 flex-wrap">Tope diario de envíos <input type="number" min="0" class="inp !w-20" data-pol="dailyCap"> <span class="text-[11px] text-slate-400">(0 = sin tope)</span></div>
+            <div class="rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 space-y-2">
+              <div class="flex items-center gap-2 flex-wrap font-semibold text-indigo-900">Máximo <input type="number" min="1" class="inp !w-16" data-pol="max24h"> envíos en <u>cualquier</u> periodo de 24 horas</div>
+              <p class="text-[11px] text-indigo-900/80">Se cuenta desde la hora real de cada envío anterior, no por día calendario. Si ayer empezaste a las 15:00, hoy el cupo se va liberando desde las 15:00 aprox.</p>
+              <label class="flex items-center gap-2 flex-wrap cursor-pointer"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-pol="warmup"> Número nuevo: calentamiento gradual desde <input type="date" class="inp !w-36 !py-1" data-pol="warmupStart"></label>
+              <div id="warmInfo" class="text-[11px] text-indigo-900/80"></div>
+              <div class="flex items-center gap-2 flex-wrap"><button id="btnPausa" class="btn btn-ghost !py-1 !text-[12px] !text-rose-700 !border-rose-200">⛔ Pausa de emergencia 48 h</button><span id="pausaInfo" class="text-[11.5px] text-rose-700"></span></div>
+            </div>
             <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="consentOnly"> <span>Solo contactar clientes con <b>consentimiento registrado</b> <span id="consentInfo" class="text-[11px] text-slate-400"></span></span></label>
             <label class="flex items-start gap-2 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-pol="salida"> <span>Incluir en cada mensaje la opción de salida (<i>"responde BAJA"</i>)</span></label>
             <div class="flex items-center gap-2 flex-wrap">Pausar si las bajas superan <input type="number" min="0" step="0.5" class="inp !w-16" data-pol="bajaMax"> % (últimos 7 días)</div>
+            <details class="rounded-lg border border-slate-200">
+              <summary class="px-2.5 py-2 text-[12.5px] font-semibold">📘 ¿Qué provoca restricciones de WhatsApp?</summary>
+              <ul class="px-4 pb-3 pt-1 text-[11.5px] text-slate-600 list-disc space-y-1">
+                <li><b>Reportes y bloqueos de quien recibe</b>: es la señal más fuerte. Escribe solo a clientes reales y relevantes.</li>
+                <li><b>Muchos chats nuevos sin respuesta</b>: prioriza clientes que ya te conocen y responde rápido; las conversaciones de ida y vuelta mejoran la reputación del número.</li>
+                <li><b>Ráfagas</b>: muchos mensajes en poco tiempo. Por eso el cupo de 24 h móviles y los intervalos de varios minutos.</li>
+                <li><b>Números nuevos</b>: empieza con 10 al día y sube de a poco (calentamiento).</li>
+                <li><b>Primer mensaje con enlaces o archivos</b>: evítalos; envía primero texto y comparte enlaces cuando el cliente responda.</li>
+                <li><b>Perfil incompleto</b>: usa WhatsApp Business con logo, descripción, dirección y horario.</li>
+                <li><b>Si aparece un aviso de restricción</b>: usa la pausa de emergencia y no envíes nuevos chats por 48 h.</li>
+              </ul>
+            </details>
             <div>
               <span class="lbl">Lista de exclusión (No contactar)</span>
               <textarea id="optPaste" rows="3" class="inp font-mono !text-[12px]" placeholder="Pega códigos o teléfonos, uno por línea"></textarea>
@@ -218,8 +237,13 @@
               <label class="flex items-center gap-2 mt-1.5 text-[12px] text-slate-600"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-cad="sabado"> Incluir sábados como día hábil</label>
             </div>
             <div>
-              <span class="lbl">Intervalo entre contactos (seg · distribución normal)</span>
-              <div class="grid grid-cols-2 gap-2"><input type="number" min="10" class="inp" data-cad="gapMin" title="Mínimo"><input type="number" min="10" class="inp" data-cad="gapMax" title="Máximo"></div>
+              <span class="lbl">Intervalo entre contactos (minutos · mín–máx)</span>
+              <div class="grid grid-cols-2 gap-2"><input type="number" min="1" step="0.5" class="inp" data-cad="gapMinM" title="Mínimo"><input type="number" min="1" step="0.5" class="inp" data-cad="gapMaxM" title="Máximo"></div>
+              <label class="flex items-start gap-2 mt-1.5 text-[12px] text-slate-600 cursor-pointer"><input type="checkbox" class="mt-0.5 w-4 h-4 accent-indigo-600" data-cad="repartir"> <span><b>Repartir en toda la jornada</b>: distribuye el cupo disponible hasta la hora de cierre, con intervalos irregulares (nunca dos parecidos seguidos).</span></label>
+            </div>
+            <div>
+              <span class="lbl">Pausa de almuerzo</span>
+              <div class="flex items-center gap-2"><input type="checkbox" class="w-4 h-4 accent-indigo-600" data-cad="lunch"><input type="time" class="inp" data-cad="lunchStart"><span>a</span><input type="time" class="inp" data-cad="lunchEnd"></div>
             </div>
             <div>
               <span class="lbl">Simulación de escritura (ms por carácter)</span>
@@ -393,9 +417,11 @@ const DEFAULT_BLOCKS = {
   despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Buen día!|¡Que tengas buen día!|¡Éxitos!}' },
   salida: { label: 'Opción de salida (se agrega al final)', prob: 100, items: 'Si prefieren no recibir más mensajes, respondan BAJA.\nSi no desean más mensajes, solo respondan BAJA.' },
 };
-const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, consentOnly: false, salida: true, bajaMax: 3 };
+const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, max24h: 30, warmup: false, warmupStart: '', consentOnly: false, salida: true, bajaMax: 3 };
 const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
-const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, fatMin: 6, fatMax: 10, brkMin: 4, brkMax: 10, mode: 'desborde', floor: 30 };
+const CAD_V2 = { gapMinM: 7, gapMaxM: 45, repartir: true, lunch: true, lunchStart: '13:00', lunchEnd: '14:00', fatMin: 4, fatMax: 7, brkMin: 10, brkMax: 25, v: 2 };
+const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, mode: 'desborde', floor: 30, ...CAD_V2 };
+const H24 = 86400000;
 const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion', 'No_Contactar', 'Consentimiento', 'Ejecutivo'];
 
 /* =========================================================
@@ -443,6 +469,8 @@ function migrate(d) {
   if (!Array.isArray(s.clientOrder) || (!s.clientOrder.length && Object.keys(s.clients || {}).length)) s.clientOrder = Object.keys(s.clients || {});
   delete s.mensaje;
   for (const g of Object.values(s.gestion || {})) if (!g.estadoEnvio) g.estadoEnvio = g.enviado ? 'Enviado' : 'Pendiente';
+  // Migración v4: cadencia espaciada (minutos), reparto en la jornada y cupo de 24 h móviles
+  if (!d.cad || d.cad.v !== 2) { s.cad = { ...s.cad, ...CAD_V2 }; s.run.dirty = s.run.dirty || false; s.run.needReplan = true; }
   return s;
 }
 function loadState() {
@@ -646,7 +674,7 @@ function composeMessage(c, g, avoid) {
    ========================================================= */
 function gaussian() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 function humanGapMs() {
-  const a = Math.max(5, +S.cad.gapMin || 45), b = Math.max(a, +S.cad.gapMax || 180);
+  const a = Math.max(60, (+S.cad.gapMinM || 4) * 60), b = Math.max(a, (+S.cad.gapMaxM || 40) * 60);
   const mean = (a + b) / 2, sd = (b - a) / 5 || 1;
   let x, n = 0;
   do { x = mean + gaussian() * sd; } while ((x < a || x > b) && ++n < 25);
@@ -656,6 +684,59 @@ function humanGapMs() {
 function typingMs(chars) { return Math.round(chars * rnd(+S.cad.typMin || 0, Math.max(+S.cad.typMin || 0, +S.cad.typMax || 0))); }
 function breakMs() { return Math.round(rnd(+S.cad.brkMin || 0, Math.max(+S.cad.brkMin || 0, +S.cad.brkMax || 0)) * 60000); }
 const fatigueEvery = () => rndInt(Math.max(1, +S.cad.fatMin || 6), Math.max(1, +S.cad.fatMax || 10));
+
+/** Intervalo para "repartir en la jornada": log-normal alrededor del ideal, nunca parecido al anterior */
+function spreadGap(idealMs, prevGap) {
+  const lo = Math.max(60, (+S.cad.gapMinM || 4) * 60) * 1000;
+  const hiCfg = Math.max(lo, (+S.cad.gapMaxM || 40) * 60000);
+  const hi = Math.max(lo, Math.min(hiCfg, idealMs * 2.4));
+  let x = lo;
+  for (let k = 0; k < 20; k++) {
+    x = Math.min(hi, Math.max(lo, idealMs * Math.exp(gaussian() * 0.45 - 0.1)));
+    if (x <= lo) x = lo * (1 + Math.random() * 0.8);   // no amontonar intervalos en el mínimo
+    if (!prevGap || Math.abs(x - prevGap) / prevGap > 0.25) break;
+  }
+  return Math.round(x + rnd(0, 59999)); // segundos nunca redondos
+}
+
+/* ---------- Cupo de 24 horas móviles ---------- */
+function cap24(now = Date.now()) {
+  const max = Math.max(1, Math.round(+S.policy.max24h || 30));
+  if (!S.policy.warmup || !S.policy.warmupStart) return max;
+  const start = new Date(S.policy.warmupStart + 'T00:00').getTime();
+  if (isNaN(start)) return max;
+  const semanas = Math.max(0, Math.floor((now - start) / (7 * H24)));
+  return Math.min(max, 10 + 5 * semanas); // 10 → 15 → 20 → 25 → 30 por semana
+}
+/** Horas reales de todos los envíos registrados (de todos los lotes) */
+function sentTimes() { return Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio).map(g => g.fechaEnvio).sort((a, b) => a - b); }
+function countIn24(t, times) { let n = 0; for (const x of times) if (x > t - H24 && x <= t) n++; return n; }
+/** Primer momento ≥ t en que hay un cupo libre en la ventana de 24 h */
+function quotaReleaseAt(t, times, cap) {
+  const win = times.filter(x => x > t - H24 && x <= t).sort((a, b) => a - b);
+  if (win.length < cap) return t;
+  return win[win.length - cap] + H24 + 1000;
+}
+function quotaInfo(now = Date.now()) {
+  const times = sentTimes(), cap = cap24(now);
+  const win = times.filter(x => x > now - H24 && x <= now);
+  const used = win.length;
+  return { cap, used, free: Math.max(0, cap - used), first: win[0] || null, release: used >= cap ? quotaReleaseAt(now, times, cap) : (win[0] ? win[0] + H24 : null) };
+}
+function inLunch(t) { return !!S.cad.lunch && t >= dayAt(t, S.cad.lunchStart || '13:00') && t < dayAt(t, S.cad.lunchEnd || '14:00'); }
+/** Mueve t al siguiente momento permitido: pausa de emergencia, jornada, almuerzo y cupo de 24 h */
+function nextAllowed(t, times, cap, flags) {
+  for (let i = 0; i < 80; i++) {
+    const t0 = t;
+    if (S.run.pausaHasta && t < S.run.pausaHasta) { t = S.run.pausaHasta + rnd(5, 20) * 60000; if (flags) flags.pausa = true; }
+    const w = windowAt(t);
+    if (!w.inside) t = w.nextStart + rnd(3, 25) * 60000;          // inicio de jornada nunca exacto
+    else if (inLunch(t)) t = dayAt(t, S.cad.lunchEnd || '14:00') + rnd(2, 12) * 60000;
+    else if (countIn24(t, times) >= cap) { t = quotaReleaseAt(t, times, cap) + rnd(3, 20) * 60000; if (flags) flags.quota = true; }
+    if (t === t0) break;
+  }
+  return Math.round(t);
+}
 
 /* ---------- Ventana laboral ---------- */
 function hm(s) { const [h, m] = String(s || '00:00').split(':').map(Number); return (h || 0) * 60 + (m || 0); }
@@ -773,56 +854,50 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
   for (const cod of l.codigos) { const g = S.gestion[cod]; if (g && !g.enviado) { const r = blockedReason(cod, lbp); if (r) { g.estadoEnvio = BLOCK_LABEL[r]; g.sched = null; g.eff = null; } } }
   const pend = lotePending(l).map(cod => ({ cod, g: S.gestion[cod] }));
   const now = Date.now();
-  const cap = Math.max(0, +S.policy.dailyCap || 0);
-  const dayCount = {}; dayCount[todayKey(now)] = Object.values(S.gestion).filter(g => g.enviado && todayKey(g.fechaEnvio) === todayKey(now)).length;
-  let capHit = false;
-  let t = Math.max(from ?? now, now);
-  let w = windowAt(t);
-  if (!w.inside) t = w.nextStart;
-  while (cap && (dayCount[todayKey(t)] || 0) >= cap) { t = nextWindowStart(dayAt(t, S.cad.end)); capHit = true; }
-  let curEnd = dayAt(t, S.cad.end);
-  const startT = t;
-  // Ajuste proporcional (solo para el día en curso)
-  let factor = 1;
+  const times = sentTimes(), cap = cap24(now), planned = [], flags = { quota: false, pausa: false };
+  const merged = () => planned.length ? times.concat(planned) : times;
+  let t = nextAllowed(Math.max(from ?? now, now), times, cap, flags);
+  const startT = t, firstDay = todayKey(t);
   const floorMs = Math.max(5, +S.cad.floor || 30) * 1000;
-  if (S.cad.mode === 'ajuste' && pend.length) {
-    // Busca el mayor factor (≤1) con el que el lote completo termina antes del cierre, sin bajar del piso
-    const avail = curEnd - t - 15000; // margen de seguridad antes del cierre
+  const repartir = S.cad.repartir !== false;
+  // Ajuste proporcional (solo sin "repartir"): acorta intervalos para cerrar a tiempo
+  let factor = 1;
+  if (!repartir && S.cad.mode === 'ajuste' && pend.length) {
+    const avail = dayAt(t, S.cad.end) - t - 15000;
     const total = (f) => pend.reduce((sum, x) => sum + x.g.plan.typ + Math.max(floorMs, x.g.plan.gap * f) + (x.g.plan.brk ? Math.max(60000, x.g.plan.brk * f) : 0), 0);
-    if (total(1) > avail) {
-      let lo = 0, hi = 1;
-      for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (total(mid) <= avail) lo = mid; else hi = mid; }
-      factor = lo;
-    }
+    if (total(1) > avail) { let lo = 0, hi = 1; for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (total(mid) <= avail) lo = mid; else hi = mid; } factor = lo; }
   }
-  let overflow = 0, todayCount = 0, todayEnd = null, firstDay = todayKey(t);
-  for (const { g } of pend) {
-    const sameDay = todayKey(t) === firstDay;
-    const f = sameDay ? factor : 1;
-    const gap = Math.max(floorMs, Math.round(g.plan.gap * f));
-    const brk = g.plan.brk ? Math.max(60000, Math.round(g.plan.brk * f)) : 0;
-    let restStart = t;
-    t += brk + gap + g.plan.typ;
-    if (t > curEnd) {
-      // Desborde: siguiente día hábil, desde la hora de inicio
-      const ns = nextWindowStart(curEnd);
-      restStart = ns; t = ns + Math.min(gap, 90000) + g.plan.typ;
-      curEnd = dayAt(ns, S.cad.end);
-    }
-    // Tope diario: si el día ya llegó al máximo, pasa al siguiente día hábil
-    while (cap && (dayCount[todayKey(t)] || 0) >= cap) {
-      const ns = nextWindowStart(dayAt(t, S.cad.end));
-      restStart = ns; t = ns + Math.min(gap, 90000) + g.plan.typ; curEnd = dayAt(ns, S.cad.end); capHit = true;
-    }
-    dayCount[todayKey(t)] = (dayCount[todayKey(t)] || 0) + 1;
+  let overflow = 0, todayCount = 0, todayEnd = null, prevGap = 0;
+  pend.forEach(({ g }, i) => {
+    const curEnd = dayAt(t, S.cad.end);
+    let gap;
+    if (repartir) {
+      // Reparte el cupo que queda en las horas que quedan de la jornada
+      const restantes = pend.length - i;
+      const slots = Math.max(1, Math.min(restantes, cap - countIn24(t, merged())));
+      const almuerzo = S.cad.lunch && t < dayAt(t, S.cad.lunchStart || '13:00') ? (hm(S.cad.lunchEnd || '14:00') - hm(S.cad.lunchStart || '13:00')) * 60000 : 0;
+      const descansos = pend.slice(i, i + slots).reduce((sum, x) => sum + (x.g.plan.brk || 0), 0);
+      const ideal = Math.max(60000, (curEnd - t - almuerzo - descansos) / slots);
+      gap = spreadGap(ideal, prevGap);
+    } else gap = Math.max(floorMs, Math.round(g.plan.gap * (todayKey(t) === firstDay ? factor : 1)));
+    prevGap = gap;
+    const brk = g.plan.brk ? Math.max(60000, Math.round(g.plan.brk * (repartir ? 1 : factor))) : 0;
+    const restStart = t;
+    const ideal = t + brk + gap + g.plan.typ;
+    t = nextAllowed(ideal, merged(), cap, flags);
+    // Si el cupo empujó la hora, que no quede pegada al envío anterior (mínimo + variación)
+    const prevT = planned.length ? planned[planned.length - 1] : (times.length ? times[times.length - 1] : 0);
+    const minSep = Math.max(60, (+S.cad.gapMinM || 7) * 60) * 1000 * (1 + Math.random() * 0.8);
+    if (prevT && t - prevT < minSep) t = nextAllowed(prevT + minSep, merged(), cap, flags);
+    planned.push(t);
     g.sched = t;
-    g.eff = { gap, brk, typ: g.plan.typ, restUntil: brk ? restStart + brk : 0 };
+    g.eff = { gap, brk, typ: g.plan.typ, restUntil: brk && t === ideal ? restStart + brk : 0 };
     g.estadoEnvio = todayKey(t) > todayKey(now) ? 'Reprogramado' : 'Pendiente';
     if (todayKey(t) === firstDay) { todayCount++; todayEnd = t; } else overflow++;
-  }
+  });
   const hours = todayEnd ? (todayEnd - startT) / 3600000 : 0;
   const blocked = l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado && blockedReason(c, lbp)).length;
-  S.run.info = { start: startT, finish: pend.length ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now, capHit, cap, blocked };
+  S.run.info = { start: startT, finish: pend.length ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now, capHit: flags.quota, cap, pausa: flags.pausa, blocked };
   save();
   return S.run.info;
 }
@@ -1108,6 +1183,9 @@ function cadStatus(now = Date.now()) {
   if (!n) return { k: 'completo' };
   if (R.blocked) return { k: 'esperando', n };
   if (!R.running) return { k: 'detenido', n };
+  if (S.run.pausaHasta && now < S.run.pausaHasta) return { k: 'pausa', n, until: S.run.pausaHasta };
+  const q = quotaInfo(now);
+  if (q.used >= q.cap) return { k: 'cupo', n, until: Math.max(q.release || now, n.g.sched || now) };
   const w = windowAt(now);
   if (!w.inside) return { k: 'fuera', n, until: w.nextStart };
   const sched = n.g.sched || now;
@@ -1128,7 +1206,7 @@ function startRunner() {
     if (w) { waWin = w; try { window.focus(); } catch (e) {} } else toast('Permite ventanas emergentes para esta página.', 'warn', 3500);
   }
   const n0 = nextPending();
-  if (!n0.g.sched || n0.g.sched < Date.now()) planLote(); // solo reprograma si la hora ya pasó
+  if (!n0.g.sched || n0.g.sched < Date.now() || countIn24(n0.g.sched, sentTimes()) >= cap24()) planLote(); // reprograma si la hora pasó o no respeta el cupo
   R.running = true;
   clearInterval(R.timer); R.timer = setInterval(tick, 500);
   tick(); renderAllRunner();
@@ -1147,6 +1225,7 @@ async function fireNext(mode) {
   R.firing = true;
   try {
     const n = nextPending(); if (!n) { finishLote(); return; }
+    if (!sendAllowed()) return;
     if (!n.g.gen?.text) planLote();
     const msg = n.g.gen.text;
     copyText(msg);
@@ -1185,8 +1264,21 @@ function showBlocked(n) {
   let on = false; titleFlash = setInterval(() => { on = !on; document.title = on ? '🔔 ¡Abrir siguiente chat!' : 'Difusión WhatsApp CRM'; }, 900);
 }
 function hideBlocked() { R.blocked = null; clearInterval(titleFlash); titleFlash = null; $('#blockedBanner').classList.add('hidden'); }
+/** Candado: nunca se abre un chat si el cupo de 24 h está lleno o hay pausa de emergencia */
+function sendAllowed() {
+  const now = Date.now();
+  if (S.run.pausaHasta && now < S.run.pausaHasta) { toast(`Pausa de emergencia activa hasta ${fmtWhen(S.run.pausaHasta)}.`, 'error', 5000); return false; }
+  const q = quotaInfo(now);
+  if (q.used >= q.cap) {
+    toast(`Cupo de ${q.cap} envíos en 24 h completo. Se libera un cupo ${fmtWhen(q.release)}.`, 'warn', 6000);
+    hideBlocked(); planLote({ from: now }); renderAllRunner();
+    return false;
+  }
+  return true;
+}
 async function resolveBlocked() {
   if (!R.blocked) return;
+  if (!sendAllowed()) return;
   const n = R.blocked;
   copyText(n.g.gen.text);
   if (await openWA(waSendUrl(n.c.telefono, n.g.gen.text), true)) { hideBlocked(); afterSent(n.cod); }
@@ -1209,6 +1301,8 @@ const ST_UI = {
   esperando: ['🔔 Esperando tu clic', 'bg-emerald-200 text-emerald-800 animate-pulse', 'abre el chat con el botón verde'],
   detenido: ['⏹ Detenido', 'bg-slate-200 text-slate-600', 'pulsa Comenzar'],
   completo: ['✓ Lote completado', 'bg-emerald-100 text-emerald-700', 'sin pendientes'],
+  cupo: ['⏳ Cupo de 24 h completo', 'bg-rose-100 text-rose-700', 'para que se libere un cupo'],
+  pausa: ['⛔ Pausa de emergencia', 'bg-rose-200 text-rose-800', 'de pausa restante'],
 };
 function renderClock() {
   const now = Date.now(), st = cadStatus(now), ui = ST_UI[st.k];
@@ -1232,7 +1326,18 @@ function renderKpis() {
   $('#progTxt').textContent = `${sent}/${tot}`;
   $('#progBar').style.width = tot ? `${(sent / tot) * 100}%` : '0%';
   $('#kPend').textContent = pend;
-  $('#kWin').textContent = `${S.cad.start}–${S.cad.end}`;
+  const q = quotaInfo();
+  $('#kCupo').textContent = `${q.used}/${q.cap}`;
+  $('#kCupo').className = 'text-xl font-bold tabular-nums ' + (q.used >= q.cap ? 'text-rose-600' : q.used >= q.cap * 0.8 ? 'text-amber-600' : 'text-emerald-700');
+  $('#kCupoSub').textContent = q.used >= q.cap ? `libera ${fmtWhen(q.release)}` : `${q.free} libres ahora`;
+  const qb = $('#quotaBanner');
+  qb.classList.toggle('hidden', !q.used);
+  if (q.used) qb.innerHTML = `⏱️ <b>Ventana de 24 h:</b> el primer envío que cuenta fue ${fmtWhen(q.first)}; llevas <b>${q.used} de ${q.cap}</b>. ` +
+    (q.used >= q.cap ? `<b>Cupo completo</b>: no se abrirá ningún chat hasta ${fmtWhen(q.release)} (cuando se cumplan 24 h del envío más antiguo).` : `Ese primer cupo se libera ${fmtWhen(q.first + H24)}.`) +
+    ` Jornada ${S.cad.start}–${S.cad.end}${S.cad.lunch ? `, almuerzo ${S.cad.lunchStart}–${S.cad.lunchEnd}` : ''}.`;
+  $('#warmInfo').textContent = S.policy.warmup ? (S.policy.warmupStart ? `Cupo actual por calentamiento: ${cap24()} en 24 h (sube 5 cada semana hasta ${S.policy.max24h}).` : 'Indica la fecha en que empezaste a usar este número.') : '';
+  $('#pausaInfo').textContent = S.run.pausaHasta && Date.now() < S.run.pausaHasta ? `Activa hasta ${fmtWhen(S.run.pausaHasta)}` : '';
+  $('#btnPausa').textContent = S.run.pausaHasta && Date.now() < S.run.pausaHasta ? '✅ Quitar pausa de emergencia' : '⛔ Pausa de emergencia 48 h';
   const h = health();
   $('#kBajas').textContent = `${h.rate.toFixed(1)}%`;
   $('#kBajas').className = 'text-xl font-bold tabular-nums ' + (h.alert ? 'text-rose-600' : h.rate > 0 ? 'text-amber-600' : 'text-slate-800');
@@ -1252,7 +1357,7 @@ function renderKpis() {
       box.innerHTML = (info.blocked ? `🚫 ${info.blocked} contacto(s) del lote se omiten (no contactar, consentimiento o frecuencia). ` : '') + `✓ El lote <b>cabe en la jornada</b>: ${info.todayCount} contactos, cierre estimado <b>${fmtWhen(info.todayEnd)}</b>.` + (info.factor < 1 ? ` Intervalos ajustados al <b>${Math.round(info.factor * 100)}%</b> (piso ${S.cad.floor} s).` : '') + fuera;
     } else {
       box.className = 'rounded-lg px-3 py-2 text-[12.5px] bg-amber-50 border border-amber-200 text-amber-800';
-      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} omitido(s) por protección. ` : '') + (info.capHit ? `📏 Tope diario de ${info.cap} envíos alcanzado. ` : '') + `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (info.capHit ? ' El resto sale el siguiente día hábil.' : S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
+      box.innerHTML = (info.blocked ? `🚫 ${info.blocked} omitido(s) por protección. ` : '') + (info.capHit ? `⏳ Cupo de ${info.cap} envíos en 24 h: los siguientes se programan cuando se liberan cupos. ` : '') + (info.pausa ? '⛔ Pausa de emergencia activa. ' : '') + `⚠️ No cabe todo antes de las ${S.cad.end}: ${info.todayCount} contactos el ${fmtDateKey(info.firstDay)} (cierre ${info.todayEnd ? fmtTime(info.todayEnd, true) : '—'}) y <b>${info.overflow} reprogramados</b> al siguiente día hábil.` + (info.capHit ? ' Así nunca hay más de ' + info.cap + ' mensajes en 24 horas.' : S.cad.repartir !== false ? ' Lo que no alcanza hoy sigue mañana al abrir la jornada.' : S.cad.mode === 'ajuste' ? ` Aun con ajuste al piso mínimo (${S.cad.floor} s) no alcanzó.` : ' Puedes elegir <b>Ajuste proporcional</b> en el motor de cadencia.') + fuera;
     }
   }
   $('#btnStart').disabled = R.running;
@@ -1624,7 +1729,7 @@ $('#blocksBox').addEventListener('input', e => {
   internalWarn(); markDirty();
 });
 // Motor de cadencia
-const TIME_KEYS = ['gapMin', 'gapMax', 'typMin', 'typMax', 'fatMin', 'fatMax', 'brkMin', 'brkMax'];
+const TIME_KEYS = ['gapMin', 'gapMax', 'gapMinM', 'gapMaxM', 'typMin', 'typMax', 'fatMin', 'fatMax', 'brkMin', 'brkMax'];
 let cadT;
 $$('[data-cad]').forEach(el => el.addEventListener('change', () => {
   const k = el.dataset.cad;
@@ -1639,10 +1744,22 @@ $$('[data-cad]').forEach(el => el.addEventListener('change', () => {
 $$('[data-pol]').forEach(el => el.addEventListener('change', () => {
   const k = el.dataset.pol;
   if (el.type === 'checkbox') S.policy[k] = el.checked;
+  else if (el.type === 'date') S.policy[k] = el.value;
   else { const v = parseFloat(el.value); if (isNaN(v) || v < 0) { el.value = S.policy[k]; return; } S.policy[k] = v; }
   if (k === 'salida') markDirty();
   planLote(); save(); renderStats(); renderAllRunner(); renderPreview();
 }));
+$('#btnPausa').addEventListener('click', () => {
+  if (S.run.pausaHasta && Date.now() < S.run.pausaHasta) {
+    if (!confirm('¿Quitar la pausa de emergencia? Hazlo solo si WhatsApp ya no muestra avisos de restricción.')) return;
+    S.run.pausaHasta = 0;
+  } else {
+    if (!confirm('Pausa de emergencia: no se abrirá ningún chat nuevo durante 48 horas y se reprograma la cola. ¿Activar?')) return;
+    S.run.pausaHasta = Date.now() + 48 * 3600000;
+    stopRunner();
+  }
+  planLote({ from: Date.now() }); save(true); renderAllRunner();
+});
 $('#optAdd').addEventListener('click', () => {
   const lines = $('#optPaste').value.split(/[\r\n,;\t]+/).map(x => x.trim()).filter(Boolean);
   if (!lines.length) { toast('Pega al menos un código o teléfono.', 'warn'); return; }
@@ -1733,12 +1850,14 @@ window.addEventListener('storage', e => { if (e.key === LS_KEY && e.newValue && 
 document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
 // Reloj visible aunque esté detenido (cuenta regresiva / estado de jornada)
 setInterval(() => { if (!R.running) renderClock(); }, 1000);
+// El cupo de 24 h se libera con el paso del tiempo: refrescar indicadores cada 15 s
+setInterval(() => { try { renderKpis(); } catch (e) {} }, 15000);
 
 // INIT
 syncInputs();
 setTab(S.ui.tab || 'campana');
 // Al recargar se conserva la programación guardada; solo se recalcula si falta o ya venció
-{ const l0 = getSendLote(), n0 = l0 && nextPending(); if (n0 && (!n0.g.sched || !n0.g.gen || n0.g.sched < Date.now())) planLote(); }
+{ const l0 = getSendLote(), n0 = l0 && nextPending(); if (n0 && (S.run.needReplan || !n0.g.sched || !n0.g.gen || n0.g.sched < Date.now())) { if (S.run.needReplan) ensurePlans(l0, true); planLote(); } S.run.needReplan = false; }
 renderAll();
 </script>
 </body>

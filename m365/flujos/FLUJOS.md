@@ -52,6 +52,8 @@ Son 8 flujos. Todos usan solo conectores **estándar** de Microsoft 365: SharePo
    |---|---|
    | telefono | `item()?['Telefono']` |
    | fecha | `formatDateTime(convertFromUtc(item()?['FechaEnvio'],'SA Pacific Standard Time'),'yyyy-MM-dd')` |
+6b. **Seleccionar** `SelRecientes` (modo texto). De: `body('Enviados')`. Valor: `formatDateTime(convertFromUtc(item()?['FechaEnvio'],'SA Pacific Standard Time'),'yyyy-MM-dd HH:mm:ss')`.
+   Le da al motor la **hora exacta de cada envío** para calcular el cupo de 24 h móviles.
 7. **Filtrar matriz** `EnviadosHoy`. De: `body('SelEnvios')`. Condición: `item()?['fecha']` es igual a `formatDateTime(convertFromUtc(utcNow(),'SA Pacific Standard Time'),'yyyy-MM-dd')`.
 8. **Obtener elementos** → `CRM_NoContactar`. Renómbrala `NoContactar`.
 9. **Seleccionar** `SelBajasTel` (modo texto) con `item()?['Title']`. Luego **Seleccionar** `SelBajasCod` (modo texto) con `coalesce(item()?['Codigo'],'')`.
@@ -67,7 +69,8 @@ Son 8 flujos. Todos usan solo conectores **estándar** de Microsoft 365: SharePo
   "asignados": @{body('SelAsignados')},
   "noContactar": @{union(body('SelBajasTel'), body('SelBajasCod'))},
   "ultimosEnvios": @{body('SelEnvios')},
-  "enviadosHoy": @{length(body('EnviadosHoy'))}
+  "enviadosHoy": @{length(body('EnviadosHoy'))},
+  "enviosRecientes": @{body('SelRecientes')}
 }
 ```
    > `triggerBody()?['text']` y `['number']` son los nombres internos de las entradas. Si tu disparador los llama distinto (`text_1`, etc.), usa el contenido dinámico *Ejecutivo* y *Tamano*.
@@ -122,6 +125,10 @@ Son 8 flujos. Todos usan solo conectores **estándar** de Microsoft 365: SharePo
    - Ordenar por: `HoraProgramada asc` · Recuento superior: `1`
 2. **Condición**: `length(body('Turno')?['value'])` es mayor que `0`. Todo lo siguiente va en **Sí**:
 3. **Redactar** `Contacto`: `first(body('Turno')?['value'])`.
+3b. **Candado del cupo de 24 h (obligatorio):**
+   - **Obtener elementos** `CRM_Gestiones` → renombra `Ultimas24h`. Filtro: `EstadoEnvio eq 'Enviado' and FechaEnvio ge '@{addHours(utcNow(),-24)}'`, con paginación.
+   - **Condición**: si `length(body('Ultimas24h')?['value'])` es **mayor o igual que 30**, pon **Finalizar** (correcto) sin enviar tarjeta.
+   - Usa el mismo número que la clave `maximo_24h` de *Ajustes*. Este candado protege aunque alguien marque envíos a mano o cambie horas en la lista.
 4. **Obtener elementos** `CRM_Gestiones` → renombra `TarjetaAbierta`. Filtro: `EstadoEnvio eq 'Notificado' and CorreoEjecutivo eq '@{outputs('Contacto')?['CorreoEjecutivo']}'` · Recuento superior 1.
    **Condición**: si `length(body('TarjetaAbierta')?['value'])` es mayor que 0, pon **Finalizar** (correcto). Así cada ejecutivo tiene una sola tarjeta a la vez.
 5. **Obtener elementos** `CRM_NoContactar` → renombra `EsBaja`. Filtro: `Title eq '@{outputs('Contacto')?['Telefono']}'`.

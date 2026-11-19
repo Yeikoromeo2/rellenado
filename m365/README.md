@@ -40,10 +40,11 @@ Agente de Copilot "CRM Difusión" (Teams / Microsoft 365 Copilot)
   - **Nunca incluyen códigos de cliente ni teléfonos.**
   - Llevan la opción de salida "respondan BAJA".
 - **Protección:**
+  - **Máximo 30 envíos en cualquier periodo de 24 horas** (ventana móvil desde la hora real de cada envío; no se reinicia a medianoche).
+  - Intervalos irregulares de 7 a 45 minutos repartidos en toda la jornada, pausa de almuerzo y descansos largos.
   - No contactar.
   - Consentimiento (opcional).
   - Máximo 1 mensaje por número cada 7 días.
-  - Tope de 40 envíos diarios.
   - Jornada 09:00–18:00, de lunes a viernes.
 - **Envío:** lo hace una persona. La tarjeta de Teams abre el chat con el mensaje listo y el ejecutivo presiona Enter.
 
