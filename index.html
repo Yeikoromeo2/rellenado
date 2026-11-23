@@ -53,8 +53,9 @@
       <button id="btnReloadSheets" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Recargar hojas</button>
     </div>
     <div>
-      <label class="lbl" for="cfgSheet">Hoja destino</label>
-      <select id="cfgSheet" class="inp"></select>
+      <span class="lbl">Hojas a revisar y rellenar</span>
+      <div id="cfgSheets" class="rounded-lg border border-slate-200 max-h-44 overflow-y-auto scroll-thin"></div>
+      <p class="text-[11px] text-slate-500 mt-1">Se aplican las mismas reglas en todas las hojas marcadas.</p>
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div>
@@ -130,7 +131,7 @@
         <span class="lbl">Responsable</span>
         <div id="respChips" class="grid grid-cols-2 gap-1.5"></div>
       </div>
-      <p class="text-[11.5px] text-slate-500">🛡️ Solo rellena celdas <b>vacías</b> de FECHA CONTACTO y RESPONSABLE. No sobrescribe ni toca otras columnas.</p>
+      <p class="text-[11.5px] text-slate-500">🛡️ Busca en todas las hojas marcadas y solo rellena celdas <b>vacías</b> de FECHA CONTACTO y RESPONSABLE.</p>
     </div>
 
     <button id="btnRun1" class="btn btn-primary w-full !py-2.5">▶ Ejecutar acción 1</button>
@@ -156,7 +157,7 @@
         <button id="btnRefreshCols" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Revisar</button>
       </div>
       <div id="colsList" class="space-y-1 max-h-56 overflow-y-auto scroll-thin"></div>
-      <p class="text-[11px] text-slate-500 mt-2">🛡️ Solo se rellenan celdas <b>vacías</b> de estas 6 columnas. Customer ID, Razón Social y Número nunca se tocan, y nada se sobrescribe.</p>
+      <p class="text-[11px] text-slate-500 mt-2">🛡️ Solo celdas <b>vacías</b> de estas columnas, en todas las hojas marcadas. En filas existentes no se tocan Customer ID, Razón Social ni Número.</p>
     </div>
 
     <button id="btnRun2" class="btn btn-green w-full !py-2.5">⇢ Rellenar información en Excel</button>
@@ -176,6 +177,6 @@
 
 <div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
 
-<script src="app.js?v=1.1.0"></script>
+<script src="app.js?v=1.2.0"></script>
 </body>
 </html>

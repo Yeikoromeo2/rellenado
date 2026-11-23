@@ -41,6 +41,16 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
 2. Solo se trasladan estas 6 columnas: `ESTADO CONTACTO`, `PRÓXIMA ACCIÓN`, `OBSERVACIÓN`, `NOMBRE DEL CONTACTO`, `CORREO` y `TELÉFONO`.
 3. Pulsa **Rellenar información en Excel**. Solo se escriben las celdas que en la hoja están **vacías**.
 
+**Varias hojas a la vez (BD-BBPE + Seguimiento semanal)**
+- En ⚙ Configuración → *Hojas a revisar y rellenar*. Vienen marcadas BD-BBPE y cualquier hoja cuyo nombre contenga "seguimiento".
+- Cada código se busca en **todas** las hojas marcadas y se rellena donde exista, con las mismas reglas.
+- El resumen muestra qué se hizo en cada hoja y avisa si un código está repetido dentro de una hoja.
+- **Códigos que no están en ninguna hoja:** aparecen listados con el botón **➕ Rellenar y agregar al final**.
+  - Eliges la hoja y se escriben en la **primera fila vacía del final** (Customer ID + los datos de la acción).
+  - Justo antes de escribir se vuelve a revisar todas las hojas marcadas, para **no duplicar** un código.
+  - En la Acción 2 puedes incluir Razón Social y Número del CRM, **solo en esas filas nuevas**.
+  - Se puede deshacer con el botón inferior.
+
 **Reglas de protección (las dos acciones)**
 - `Customer ID` solo se usa para buscar la fila. Nunca se escribe en ella.
 - `Razón Social` y `Número de Contacto` nunca se tocan.
