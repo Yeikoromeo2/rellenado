@@ -51,6 +51,12 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
   - En la Acción 2 puedes incluir Razón Social y Número del CRM, **solo en esas filas nuevas**.
   - Se puede deshacer con el botón inferior.
 
+**🎲 Tomar libres (flujo recomendado)**
+1. En el complemento, pestaña **🎲 Tomar libres**: indica cuántos tomar de cada hoja (15 + 15 por defecto), la fecha y el responsable.
+2. **Tomar y registrar** elige al azar códigos **libres** (sin FECHA CONTACTO ni RESPONSABLE en ninguna hoja marcada) y los registra de inmediato. Se puede deshacer.
+3. **📋 Copiar lista para difusión** copia código, razón social y número.
+4. En la herramienta de difusión: **Envío → 🔎 Lote desde códigos del complemento** → pegar → **Buscar** → **Generar lote**.
+
 **Validar antes de rellenar (Acción 1)**
 - **🔍 Validar** revisa los códigos en las hojas marcadas **sin escribir nada** y muestra un reporte: *"Se encontraron 15 de 17: 8 ya registrados, 7 nuevos y 2 no existen"*.
 - Por cada código indica hoja, fila, fecha y responsable que ya tiene. Se puede filtrar, copiar los ya registrados o los nuevos, y descargar el reporte en Excel.

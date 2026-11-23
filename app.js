@@ -74,8 +74,8 @@ function colLetter(c) { let s = ''; c++; while (c > 0) { const m = (c - 1) % 26;
 
 /* ---------------- Estado persistente (solo preferencias) ---------------- */
 let P = (() => {
-  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a1', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true };
-  try { const p = { ...base, ...JSON.parse(localStorage.getItem(LS_KEY) || '{}') }; if (!Array.isArray(p.sheets)) p.sheets = []; return p; } catch (e) { return base; }
+  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a0', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true, cuotas: {}, soloConNumero: true };
+  try { const p = { ...base, ...JSON.parse(localStorage.getItem(LS_KEY) || '{}') }; if (!Array.isArray(p.sheets)) p.sheets = []; if (!p.cuotas || typeof p.cuotas !== 'object') p.cuotas = {}; return p; } catch (e) { return base; }
 })();
 function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) {} }
 
@@ -285,10 +285,11 @@ const LocalTarget = {
 
 /* ---------------- Índice común ---------------- */
 function newIndex(sheet, h, colOffset, firstRow, lastRow) {
-  return { sheet, h, colOffset, firstRow, lastRow, rows: new Map(), existing: new Map() };
+  return { sheet, h, colOffset, firstRow, lastRow, rows: new Map(), existing: new Map(), raw: new Map() };
 }
 function addRow(idx, rawId, absRow) {
   const k = codeKey(rawId); if (!k) return;
+  if (!idx.raw.has(k)) idx.raw.set(k, String(rawId).trim());
   if (!idx.rows.has(k)) idx.rows.set(k, []);
   idx.rows.get(k).push(absRow);
 }
@@ -492,6 +493,115 @@ function exportReport() {
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Validación');
   XLSX.writeFile(wb, `Validacion_${todayISO()}.xlsx`);
   toast('Reporte descargado', 'success');
+}
+
+/* =============================================================
+   ACCIÓN 0 · TOMAR CONTACTOS LIBRES Y REGISTRARLOS
+   ============================================================= */
+const cuotaDe = (hoja) => (P.cuotas[hoja] === undefined ? 15 : Math.max(0, Math.round(+P.cuotas[hoja] || 0)));
+function renderCuotas() {
+  const hojas = selectedSheets();
+  $('#cuotas').innerHTML = hojas.length ? hojas.map((h) => `<div class="flex items-center gap-2">
+      <span class="flex-1 truncate text-[12.5px] font-semibold">📄 ${esc(h)}</span>
+      <input type="number" min="0" max="500" class="inp !w-20 text-center font-bold" data-cuota="${esc(h)}" value="${cuotaDe(h)}">
+    </div>`).join('') + `<div class="text-[11.5px] text-slate-500 text-right">Total: <b>${hojas.reduce((n, h) => n + cuotaDe(h), 0)}</b></div>`
+    : '<div class="text-[12px] text-amber-700">Marca las hojas arriba.</div>';
+}
+function renderRespChips0() {
+  $('#respChips0').innerHTML = RESPONSABLES.map((n) => `<button class="chip ${P.resp === n ? 'on' : ''}" data-resp0="${esc(n)}">${esc(n)}</button>`).join('');
+}
+function mezclar(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+async function runAction0() {
+  const date = $('#date0').value;
+  if (!date) return toast('Elige la fecha.', 'warn');
+  if (!P.resp) return toast('Marca un responsable.', 'warn');
+  const hojas = selectedSheets();
+  if (!hojas.length) return toast('Marca al menos una hoja.', 'warn');
+  const total = hojas.reduce((n, h) => n + cuotaDe(h), 0);
+  if (!total) return toast('Indica cuántos tomar de cada hoja.', 'warn');
+  const kDate = normKey(P.dateCol), kResp = normKey(P.respCol);
+  const allowed = allowedKeys(1);
+  if (!allowed.has(kDate) || !allowed.has(kResp)) return toast('La columna de fecha o de responsable apunta a una columna protegida.', 'error', 4500);
+  const soloNum = $('#soloConNumero').checked;
+  if (!confirm(`Se tomarán ${total} contactos libres y se registrarán con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}. ¿Continuar?`)) return;
+
+  await busy('#btnRun0', async () => {
+    const prog = $('#prog0');
+    setProgress(prog, 0.05, 'Leyendo las hojas…');
+    const { idxs, errores } = await buildIndexes([kDate, kResp, ...NEW_ROW_RAZON, ...NEW_ROW_NUMERO]);
+    const sinCols = idxs.filter((idx) => !idx.h.cols.has(kDate) || !idx.h.cols.has(kResp)).map((x) => x.sheet);
+    if (sinCols.length) throw new Error(`Falta FECHA CONTACTO o RESPONSABLE en: ${sinCols.join(', ')}.`);
+    // Un código está LIBRE si en ninguna hoja marcada tiene fecha ni responsable
+    const libreEn = (idx, k) => idx.rows.get(k).every((row) => isEmpty(existingAt(idx, kDate, row)) && isEmpty(existingAt(idx, kResp, row)));
+    const libreGlobal = (k) => idxs.every((idx) => !idx.rows.has(k) || libreEn(idx, k));
+    const dato = (idx, keys, row) => { const k = findKey(idx, keys); return k ? existingAt(idx, k, row) : ''; };
+    const tomados = new Set(), elegidos = [], faltantes = [];
+    for (const idx of idxs) {
+      const cuota = cuotaDe(idx.sheet);
+      if (!cuota) continue;
+      const kNum = findKey(idx, NEW_ROW_NUMERO);
+      const candidatos = mezclar([...idx.rows.keys()].filter((k) => !tomados.has(k) && libreGlobal(k) &&
+        (!soloNum || !kNum || !isEmpty(existingAt(idx, kNum, idx.rows.get(k)[0])))));
+      const lote = candidatos.slice(0, cuota);
+      if (lote.length < cuota) faltantes.push(`${idx.sheet}: solo ${lote.length} de ${cuota} libres`);
+      for (const k of lote) {
+        tomados.add(k);
+        const row = idx.rows.get(k)[0];
+        const idRaw = idx.raw.get(k) ?? k;
+        elegidos.push({ key: k, hoja: idx.sheet, fila: row + 1, razon: String(dato(idx, NEW_ROW_RAZON, row) ?? '').trim(), numero: String(dato(idx, NEW_ROW_NUMERO, row) ?? '').trim(), codigo: idRaw });
+      }
+    }
+    if (!elegidos.length) throw new Error('No hay contactos libres que cumplan las condiciones.' + (faltantes.length ? ' ' + faltantes.join(' · ') : ''));
+    // Registrar: fecha + responsable en TODAS las filas de cada código elegido, en todas las hojas marcadas
+    const serial = excelSerial(date), writes = [];
+    for (const e of elegidos) for (const idx of idxs) {
+      if (!idx.rows.has(e.key)) continue;
+      for (const row of idx.rows.get(e.key)) for (const [k, value, fmt] of [[kDate, serial, P.dateFmt], [kResp, P.resp, null]]) {
+        const old = existingAt(idx, k, row);
+        if (isEmpty(old)) writes.push({ sheet: idx.sheet, row, col: absCol(idx, k), key: k, value, fmt, old });
+      }
+    }
+    setProgress(prog, 0.5, 'Registrando…');
+    await applyWrites(writes, `Tomar ${elegidos.length} libres`, prog, 1);
+    setProgress(prog, 1, 'Listo');
+    APP.tomados = elegidos;
+    renderTomados(faltantes.concat(errores));
+    toast(`${elegidos.length} contactos tomados y registrados`, 'success');
+  });
+}
+function renderTomados(avisos = []) {
+  const L = APP.tomados || [];
+  if (!L.length) { $('#result0').innerHTML = ''; return; }
+  const porHoja = {}; L.forEach((e) => { porHoja[e.hoja] = (porHoja[e.hoja] || 0) + 1; });
+  $('#result0').innerHTML = `<div class="card p-3 space-y-2">
+    <div class="flex items-center justify-between"><span class="font-semibold text-[13px]">✅ ${L.length} contactos registrados</span>
+      <span class="text-[11px] text-slate-500">${Object.entries(porHoja).map(([h, n]) => `${esc(h)}: ${n}`).join(' · ')}</span></div>
+    ${avisos.map((a) => `<div class="text-[11.5px] text-amber-700">⚠️ ${esc(a)}</div>`).join('')}
+    <div class="grid grid-cols-2 gap-1.5">
+      <button class="btn btn-primary !py-2 !text-[12px] col-span-2" data-copy-tomados="lista">📋 Copiar lista para difusión</button>
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-copy-tomados="codigos">Solo códigos</button>
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-export-tomados>⬇ Excel</button>
+    </div>
+    <div class="max-h-72 overflow-y-auto scroll-thin border border-slate-100 rounded-lg">
+      <table class="w-full text-[11.5px]"><tbody>
+      ${L.map((e, i) => `<tr class="border-b border-slate-100"><td class="py-1 px-2 text-slate-400 tabular-nums">${i + 1}</td>
+        <td class="py-1 px-1 font-mono font-semibold">${esc(e.codigo)}</td>
+        <td class="py-1 px-1 truncate max-w-[140px]">${esc(e.razon)}</td>
+        <td class="py-1 px-2 text-right text-slate-500 text-[10.5px]">${esc(e.hoja)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="text-[10.5px] text-slate-500">En la herramienta de difusión: Envío → Lote del día → 🔎 Lote desde códigos → pegar.</div>
+  </div>`;
+}
+/** Lista separada por tabulaciones: código, razón social, número (se pega directo en la difusión o en Excel) */
+const listaTomados = (soloCodigos) => (APP.tomados || []).map((e) => soloCodigos ? e.codigo : [e.codigo, e.razon, e.numero].join('\t')).join('\n');
+function exportTomados() {
+  if (typeof XLSX === 'undefined') return toast('No cargó la librería de Excel.', 'error');
+  const ws = XLSX.utils.json_to_sheet((APP.tomados || []).map((e) => ({ 'Código de Cliente': e.codigo, 'Razón Social': e.razon, 'Número de Contacto': e.numero, Hoja: e.hoja, Fila: e.fila })));
+  ws['!cols'] = [16, 36, 16, 22, 7].map((w) => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Lote');
+  XLSX.writeFile(wb, `Lote_libres_${todayISO()}.xlsx`);
 }
 
 /* =============================================================
@@ -736,7 +846,7 @@ async function busy(btnSel, fn) {
   try { await fn(); } catch (err) {
     console.error(err);
     toast(err.message || String(err), 'error', 4500);
-    const pg = $(btnSel.replace('btnRun', 'prog').replace('btnCheck', 'prog')); if (pg) pg.classList.add('hidden');
+    const pg = document.querySelector(btnSel.replace('btnRun', 'prog').replace('btnCheck', 'prog')); if (pg) pg.classList.add('hidden');
   } finally { APP.busy = false; btn.disabled = false; btn.innerHTML = html; }
 }
 function renderFooter() {
@@ -762,6 +872,7 @@ async function undoLast() {
 function setTab(t) {
   P.tab = t; persist();
   $$('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
+  $('#tab-a0').classList.toggle('hidden', t !== 'a0');
   $('#tab-a1').classList.toggle('hidden', t !== 'a1');
   $('#tab-a2').classList.toggle('hidden', t !== 'a2');
 }
@@ -784,6 +895,7 @@ async function loadSheetOptions() {
     P.sheets = sel; persist();
   } else if (!P.sheets.length) P.sheets = [P.sheet || DEFAULTS.sheet];
   renderSheetPicker();
+  renderCuotas();
   renderMode();
 }
 function renderSheetPicker() {
@@ -844,7 +956,7 @@ function bindEvents() {
     const cb = e.target.closest('[data-sheet]'); if (!cb) return;
     const n = cb.dataset.sheet;
     P.sheets = cb.checked ? [...new Set([...P.sheets, n])] : P.sheets.filter((x) => x !== n);
-    P.sheetsTouched = true; persist(); renderSheetPicker(); renderMode(); refreshColumnMatch();
+    P.sheetsTouched = true; persist(); renderSheetPicker(); renderMode(); renderCuotas(); refreshColumnMatch();
   });
   for (const [id, key] of [['#cfgIdTarget', 'idTarget'], ['#cfgIdCrm', 'idCrm'], ['#cfgDateCol', 'dateCol'], ['#cfgRespCol', 'respCol'], ['#cfgDateFmt', 'dateFmt']]) {
     $(id).addEventListener('change', (e) => { P[key] = e.target.value.trim() || DEFAULTS[key]; e.target.value = P[key]; persist(); renderDatePreview(); refreshColumnMatch(); });
@@ -858,8 +970,18 @@ function bindEvents() {
   $('#btnClearCodes').addEventListener('click', () => { $('#codes').value = ''; P.codes = ''; persist(); renderCodesCounter(); $('#result1').innerHTML = ''; $('#prog1').classList.add('hidden'); APP.missing[1] = null; APP.report1 = null; renderReport(); });
   $('#date').addEventListener('input', renderDatePreview);
   $('#btnToday').addEventListener('click', () => { $('#date').value = todayISO(); renderDatePreview(); });
-  $('#respChips').addEventListener('click', (e) => { const b = e.target.closest('[data-resp]'); if (!b) return; P.resp = b.dataset.resp; persist(); renderRespChips(); });
+  $('#respChips').addEventListener('click', (e) => { const b = e.target.closest('[data-resp]'); if (!b) return; P.resp = b.dataset.resp; persist(); renderRespChips(); renderRespChips0(); });
   $('#btnRun1').addEventListener('click', () => runAction1(false));
+  // Acción 0
+  $('#btnRun0').addEventListener('click', runAction0);
+  $('#cuotas').addEventListener('change', (e) => { const i = e.target.closest('[data-cuota]'); if (!i) return; P.cuotas[i.dataset.cuota] = Math.max(0, Math.round(+i.value || 0)); persist(); renderCuotas(); });
+  $('#respChips0').addEventListener('click', (e) => { const b = e.target.closest('[data-resp0]'); if (!b) return; P.resp = b.dataset.resp0; persist(); renderRespChips0(); renderRespChips(); });
+  $('#soloConNumero').addEventListener('change', (e) => { P.soloConNumero = e.target.checked; persist(); });
+  $('#result0').addEventListener('click', async (e) => {
+    const c = e.target.closest('[data-copy-tomados]');
+    if (c) { if (await copyText(listaTomados(c.dataset.copyTomados === 'codigos'))) toast(`${(APP.tomados || []).length} contactos copiados`, 'success'); return; }
+    if (e.target.closest('[data-export-tomados]')) exportTomados();
+  });
   $('#btnCheck1').addEventListener('click', () => runAction1(true));
   $('#report1').addEventListener('click', async (e) => {
     const f = e.target.closest('[data-rfiltro]'); if (f) { APP.report1.filtro = f.dataset.rfiltro; renderReport(); return; }
@@ -900,8 +1022,9 @@ function initUI() {
   $('#cfgIdTarget').value = P.idTarget; $('#cfgIdCrm').value = P.idCrm;
   $('#cfgDateCol').value = P.dateCol; $('#cfgRespCol').value = P.respCol; $('#cfgDateFmt').value = P.dateFmt;
   $('#codes').value = P.codes || '';
-  $('#date').value = todayISO();
-  renderCodesCounter(); renderRespChips(); renderDatePreview(); setTab(P.tab || 'a1'); renderFooter();
+  $('#date').value = todayISO(); $('#date0').value = todayISO();
+  $('#soloConNumero').checked = P.soloConNumero !== false;
+  renderCodesCounter(); renderRespChips(); renderRespChips0(); renderCuotas(); renderDatePreview(); setTab(P.tab || 'a0'); renderFooter();
 }
 
 async function start(mode) {

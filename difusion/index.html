@@ -223,7 +223,13 @@
         <label id="dropZone" class="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 py-2.5 text-[13px] font-semibold text-slate-600 cursor-pointer transition">
           📥 Cargar Excel de contactos<input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
         </label>
-        <button id="genLote" class="btn btn-primary w-full">🎲 Nuevo lote de 30</button>
+        <button id="btnCodToggle" class="btn btn-primary w-full">🔎 Lote desde códigos del complemento</button>
+        <div id="codPanel" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-2">
+          <textarea id="codTexto" rows="5" class="inp font-mono !text-[11.5px]" placeholder="Pega aquí la lista copiada del complemento (código, razón social y número) o solo los códigos"></textarea>
+          <button id="btnCodBuscar" class="btn btn-ghost w-full !py-1.5 !text-[12.5px]">🔎 Buscar códigos</button>
+          <div id="codPreview"></div>
+        </div>
+        <button id="genLote" class="btn btn-ghost w-full !text-[12.5px]">🎲 Lote al azar de 30 (desde la base)</button>
         <div id="importResult" class="hidden text-[11.5px] rounded-lg p-2"></div>
       </div>
 
@@ -966,7 +972,7 @@ function stats() {
 }
 function renderStats() {
   const s = stats();
-  const ob = document.getElementById('onboard'); if (ob) ob.classList.toggle('hidden', S.clientOrder.length > 0);
+  const ob = document.getElementById('onboard'); if (ob) ob.classList.toggle('hidden', S.clientOrder.length > 0 || S.lotes.length > 0);
   $('#stTotal').textContent = s.total.toLocaleString('es-PE');
   $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
   $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
@@ -1094,14 +1100,76 @@ function renderQuitarCompletar() {
   btn.classList.toggle('hidden', !l || falta <= 0);
   btn.textContent = `➕ Completar ${falta}`;
 }
-function generateLote() {
-  const pool = poolDisponible();
-  if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
+/* ---------- Lote desde códigos (lista del complemento) ---------- */
+let codAnalisis = null;
+/** Revisa la lista pegada sin cambiar nada: qué códigos se pueden usar y por qué se descartan los demás */
+function analizarCodigos(texto) {
+  const lbp = lastByPhone(), mapa = new Map(S.clientOrder.map(c => [normKey(c), c]));
+  const r = { usar: [], crear: [], sinTel: [], noBase: [], bloqueados: [], enCola: [], enviados: [], dup: 0 };
+  const vistos = new Set();
+  for (const linea of String(texto || '').split(/\r?\n/)) {
+    const partes = linea.split('\t').map(x => x.trim());
+    const raw = partes[0]; if (!raw) continue;
+    const k = normKey(raw); if (vistos.has(k)) { r.dup++; continue; } vistos.add(k);
+    const tel = normalizePhone(partes[2] || ''), razon = partes[1] || '';
+    const cod = mapa.get(k);
+    if (!cod) {
+      if (!validPhone(tel)) { r.noBase.push(raw); continue; }
+      if (S.optoutPhones[tel]) { r.bloqueados.push(`${raw} (No contactar)`); continue; }
+      r.crear.push({ codigo: raw, razon, telefono: tel }); continue;
+    }
+    const c = S.clients[cod], g = S.gestion[cod];
+    if (g?.enviado) { r.enviados.push(cod); continue; }
+    if (g && !g.enviado && g.estadoEnvio !== 'Ya registrado' && S.lotes.some(l => l.codigos.includes(cod))) { r.enCola.push(cod); continue; }
+    if (!validPhone(c.telefono) && !validPhone(tel)) { r.sinTel.push(cod); continue; }
+    const motivo = blockedReason(cod, lbp);
+    if (motivo) { r.bloqueados.push(`${cod} (${BLOCK_LABEL[motivo]})`); continue; }
+    r.usar.push({ cod, telNuevo: !validPhone(c.telefono) ? tel : '', razon: !c.razon && razon ? razon : '' });
+  }
+  return r;
+}
+function renderCodPreview() {
+  const r = codAnalisis, box = $('#codPreview');
+  if (!r) { box.innerHTML = ''; return; }
+  const total = r.usar.length + r.crear.length;
+  const lineas = [
+    [r.usar.length, 'en la base', 'text-emerald-700'],
+    [r.crear.length, 'nuevos (se agregan a la base con su número)', 'text-emerald-700'],
+    [r.enviados.length, 'ya enviados antes', 'text-slate-500', r.enviados],
+    [r.enCola.length, 'ya están en un lote pendiente', 'text-slate-500', r.enCola],
+    [r.bloqueados.length, 'bloqueados', 'text-rose-700', r.bloqueados],
+    [r.sinTel.length, 'sin número válido', 'text-amber-700', r.sinTel],
+    [r.noBase.length, 'no están en la base ni traen número', 'text-amber-700', r.noBase],
+  ].filter(x => x[0]);
+  box.innerHTML = `<div class="rounded-lg bg-white border border-slate-200 p-2.5 space-y-1 text-[12px]">
+    ${lineas.map(([n, t, c, lst]) => `<div class="${c}"><b>${n}</b> ${t}${lst ? ` <span class="text-[10.5px] text-slate-400 font-mono">${esc(lst.slice(0, 8).join(', '))}${lst.length > 8 ? '…' : ''}</span>` : ''}</div>`).join('')}
+    ${r.dup ? `<div class="text-slate-400">${r.dup} repetidos en la lista (se ignoran)</div>` : ''}
+  </div>
+  <button id="btnCodGenerar" class="btn btn-green w-full mt-2" ${total ? '' : 'disabled'}>✅ Generar lote con ${total}</button>`;
+}
+function crearLoteDesdeCodigos() {
+  const r = codAnalisis; if (!r) return;
+  const codigos = [];
+  for (const n of r.crear) {   // clientes nuevos que vienen del complemento con su número
+    S.clients[n.codigo] = { codigo: n.codigo, razon: n.razon, telefono: n.telefono, addedAt: Date.now(), extra: {} };
+    S.clientOrder.push(n.codigo); codigos.push(n.codigo);
+  }
+  for (const u of r.usar) {
+    const c = S.clients[u.cod];
+    if (u.telNuevo) c.telefono = u.telNuevo;
+    if (u.razon) c.razon = u.razon;
+    codigos.push(u.cod);
+  }
+  if (!codigos.length) return;
+  // Si alguno había sido quitado de otro lote, deja de figurar como quitado allí
+  for (const l of S.lotes) if (l.retirados) l.retirados = l.retirados.filter(x => !codigos.includes(x.cod));
+  crearLote(codigos, 'complemento');
+  codAnalisis = null; $('#codTexto').value = ''; renderCodPreview(); $('#codPanel').classList.add('hidden');
+}
+/** Crea un lote con los códigos dados, con texto único y hora programada */
+function crearLote(codigos, origen) {
   const today = todayKey();
-  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
-  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
-  const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
-  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos, ejecutivo: S.settings.ejecutivo };
+  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos, ejecutivo: S.settings.ejecutivo, origen };
   S.lotes.push(lote);
   for (const c of codigos) S.gestion[c] = nuevaGestion(lote.id);
   S.ui.sendLoteId = lote.id;
@@ -1110,7 +1178,17 @@ function generateLote() {
   planLote({ regenTexts: true, regenTimes: true });
   S.run.dirty = false;
   save(true); renderAll();
-  toast(`${loteLabel(lote)}: ${codigos.length} contactos con texto y hora programada`, 'success', 3000);
+  toast(`${loteLabel(lote)}: ${codigos.length} contactos con texto y hora programada`, 'success', 3500);
+  return lote;
+}
+function generateLote() {
+  const pool = poolDisponible();
+  if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
+  const today = todayKey();
+  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
+  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
+  const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
+  crearLote(codigos, 'azar');
 }
 function getSendLote() {
   let l = loteById(S.ui.sendLoteId);
@@ -1838,6 +1916,19 @@ window.addEventListener('drop', e => {
 });
 // Lotes
 $('#genLote').addEventListener('click', generateLote);
+$('#btnCodToggle').addEventListener('click', () => { $('#codPanel').classList.toggle('hidden'); $('#codTexto').focus(); });
+$('#btnCodBuscar').addEventListener('click', () => {
+  if (!$('#codTexto').value.trim()) { toast('Pega la lista de códigos.', 'warn'); return; }
+  codAnalisis = analizarCodigos($('#codTexto').value); renderCodPreview();
+});
+$('#codTexto').addEventListener('input', () => { if (codAnalisis) { codAnalisis = null; renderCodPreview(); } });
+$('#codPreview').addEventListener('click', e => {
+  if (!e.target.closest('#btnCodGenerar')) return;
+  const n = codAnalisis.usar.length + codAnalisis.crear.length;
+  const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);
+  if (pend && !confirm(`Ya tienes ${pend} contacto(s) pendientes en lotes de hoy. ¿Crear igualmente el lote con ${n}?`)) return;
+  crearLoteDesdeCodigos();
+});
 $('#ejecChips').addEventListener('click', e => {
   const b = e.target.closest('[data-ejec]'); if (!b) return;
   S.settings.ejecutivo = b.dataset.ejec;
