@@ -751,7 +751,7 @@ function readCrmFile(file) {
         const h = detectHeader(rows.slice(0, HEADER_SCAN_ROWS), idAliases(P.idCrm));
         if (h) { found = { sheet: name, rows, h }; break; }
       }
-      if (!found) throw new Error(`El archivo no tiene la columna "${P.idCrm}".`);
+      if (!found) throw new Error(`No encontré la columna "${P.idCrm}" en las primeras ${HEADER_SCAN_ROWS} filas. Usa el Excel descargado de la difusión (CRM → Descargar Excel).`);
       const headers = found.rows[found.h.rowOffset].map((x) => String(x).trim());
       const data = found.rows.slice(found.h.rowOffset + 1).filter((r) => codeKey(r[found.h.idCol]));
       APP.crm = { fileName: file.name, sheet: found.sheet, headers, idIdx: found.h.idCol, rows: data };
@@ -761,13 +761,16 @@ function readCrmFile(file) {
       $('#crmInfo').innerHTML = `Hoja <b>${esc(found.sheet)}</b> · <b>${data.length}</b> filas · <b>${uniq}</b> códigos únicos`;
       $('#result2').innerHTML = '';
       refreshColumnMatch();
+      toast(`Archivo cargado: ${data.length} filas`, 'success');
     } catch (err) {
       APP.crm = null;
       $('#crmInfo').classList.remove('hidden');
       $('#crmInfo').innerHTML = `<span class="text-rose-600">❌ ${esc(err.message)}</span>`;
       $('#colsCard').classList.add('hidden');
+      toast('No se pudo leer el archivo: ' + err.message, 'error', 5000);
     }
   };
+  reader.onerror = () => toast('No se pudo abrir el archivo.', 'error', 4000);
   reader.readAsArrayBuffer(file);
 }
 function crmColumns() {

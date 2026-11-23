@@ -6,7 +6,6 @@
 <title>Difusión WhatsApp CRM</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
   tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'] } } } };
 </script>
@@ -480,7 +479,8 @@ const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
 const CAD_V2 = { gapMinM: 7, gapMaxM: 45, repartir: true, lunch: true, lunchStart: '13:00', lunchEnd: '14:00', fatMin: 4, fatMax: 7, brkMin: 10, brkMax: 25, v: 2 };
 const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, mode: 'desborde', floor: 30, ...CAD_V2 };
 const H24 = 86400000;
-const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO', 'Mensaje_Generado', 'Peso_Bytes', 'Hora_Programada', 'Fecha_Hora_Gestion', 'No_Contactar', 'Consentimiento', 'Ejecutivo'];
+// Formato del Excel de gestión: exactamente estas 12 columnas (es lo que lee el complemento en la pestaña CRM)
+const EXPORT_COLS = ['Código de Cliente', 'Razón Social', 'Número de Contacto', 'Estado Envío', 'Fecha y Hora Envío', 'Lote', 'ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO'];
 
 /* =========================================================
    ESTADO + PERSISTENCIA
@@ -1826,50 +1826,27 @@ function exportRows(cods) {
       'Estado Envío': g.enviado ? 'Enviado' : (g.estadoEnvio || 'Pendiente'), 'Fecha y Hora Envío': g.enviado ? fmtDateTime(g.fechaEnvio) : '',
       'Lote': loteLabel(loteById(g.loteId)), 'ESTADO CONTACTO': g.estado || '', 'PRÓXIMA ACCIÓN': g.accion || '',
       'OBSERVACIÓN': g.obs || '', 'NOMBRE DEL CONTACTO': g.nombre || '', 'CORREO': g.correo || '', 'TELÉFONO': g.tel || '',
-      'Mensaje_Generado': g.gen?.text || g.msg || '', 'Peso_Bytes': g.gen?.bytes ?? (g.msg ? byteSize(g.msg) : ''),
-      'Hora_Programada': g.sched ? fmtDateTime(g.sched, true) : '', 'Fecha_Hora_Gestion': g.gestionAt ? fmtDateTime(g.gestionAt, true) : '',
-      'No_Contactar': isOptOut(cod) ? 'Sí' : 'No', 'Consentimiento': c.consent === true ? 'Sí' : c.consent === false ? 'No' : '',
-      'Ejecutivo': loteById(g.loteId)?.ejecutivo || '',
     };
   });
 }
-const COL_WIDTHS = [14, 38, 15, 18, 17, 22, 28, 20, 40, 24, 28, 15, 70, 11, 20, 20, 13, 15, 20];
-const STATUS_FILL = { 'Enviado': 'FFD1FAE5', 'Pendiente': 'FFF1F5F9', 'Reprogramado': 'FFFEF3C7', 'No contactar': 'FFFFE4E6', 'Sin consentimiento': 'FFE2E8F0', 'Omitido (frecuencia)': 'FFE2E8F0' };
-async function exportExcel(scope) {
+const COL_WIDTHS = [16, 38, 15, 14, 17, 22, 28, 20, 40, 24, 28, 15];
+/** Excel de gestión con SheetJS (la misma librería que usa el complemento para leerlo) */
+function exportExcel(scope) {
+  if (typeof XLSX === 'undefined') { toast('No cargó la librería de Excel (revisa tu conexión).', 'error'); return; }
   const cods = scope === 'all' ? S.lotes.flatMap(l => l.codigos) : viewCodigos();
   if (!cods.length) { toast('No hay registros para exportar.', 'warn'); return; }
   let name;
   if (scope === 'all') name = `CRM_Historial_${todayKey()}.xlsx`;
   else if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `CRM_Lote${l.num}_${l.fecha}.xlsx`; }
   else name = `CRM_${S.ui.view.replace(':', '_')}_${todayKey()}.xlsx`;
-  const rows = exportRows(cods), sheetName = scope === 'all' ? 'Historial' : 'Lote';
-  if (typeof ExcelJS !== 'undefined') {
-    // ExcelJS: encabezado con estilo, filtros, panel fijo y colores por estado
-    const wb = new ExcelJS.Workbook(); wb.creator = 'Difusión CRM'; wb.created = new Date();
-    const ws = wb.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1, xSplit: 2 }] });
-    ws.columns = EXPORT_COLS.map((h, i) => ({ header: h, key: h, width: COL_WIDTHS[i] || 16 }));
-    rows.forEach(r => ws.addRow(r));
-    const head = ws.getRow(1);
-    head.font = { bold: true, color: { argb: 'FFFFFFFF' } }; head.height = 22;
-    head.alignment = { vertical: 'middle' };
-    head.eachCell(cell => { cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; });
-    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: EXPORT_COLS.length } };
-    const iEstado = EXPORT_COLS.indexOf('Estado Envío') + 1, iMsg = EXPORT_COLS.indexOf('Mensaje_Generado') + 1, iNo = EXPORT_COLS.indexOf('No_Contactar') + 1;
-    ws.eachRow((row, n) => {
-      if (n === 1) return;
-      const st = row.getCell(iEstado), fill = STATUS_FILL[st.value];
-      if (fill) st.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-      row.getCell(iMsg).alignment = { wrapText: true, vertical: 'top' };
-      if (row.getCell(iNo).value === 'Sí') row.getCell(iNo).font = { bold: true, color: { argb: 'FFBE123C' } };
-    });
-    const buf = await wb.xlsx.writeBuffer();
-    download(name, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-  } else if (typeof XLSX !== 'undefined') {
-    const ws = XLSX.utils.json_to_sheet(rows, { header: EXPORT_COLS });
-    ws['!cols'] = COL_WIDTHS.map(w => ({ wch: w }));
-    ws['!autofilter'] = { ref: ws['!ref'] };
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheetName); XLSX.writeFile(wb, name);
-  } else { toast('Librería de Excel no disponible.', 'error'); return; }
+  // Código como texto: así "00123" o "1002" se leen igual en el complemento
+  const rows = exportRows(cods).map(r => ({ ...r, 'Código de Cliente': String(r['Código de Cliente'] ?? '') }));
+  const ws = XLSX.utils.json_to_sheet(rows, { header: EXPORT_COLS });
+  ws['!cols'] = COL_WIDTHS.map(w => ({ wch: w }));
+  ws['!autofilter'] = { ref: ws['!ref'] };
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, scope === 'all' ? 'Historial' : 'Lote');
+  XLSX.writeFile(wb, name);
   toast(`Excel descargado (${cods.length} registros)`, 'success');
 }
 function vEsc(s) { return String(s ?? '').replace(/\\/g, '\\\\').replace(/,/g, '\\,').replace(/;/g, '\\;').replace(/\r?\n/g, '\\n'); }
