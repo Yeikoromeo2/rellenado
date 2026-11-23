@@ -39,7 +39,7 @@
   <header class="flex items-center gap-2">
     <img src="assets/icon-32.png" alt="" class="w-7 h-7 rounded-md">
     <div class="leading-tight min-w-0">
-      <div class="font-bold text-[14px]">Rellenado CRM <span class="text-[10px] font-semibold text-slate-400">v1.5</span></div>
+      <div class="font-bold text-[14px]">Rellenado CRM <span class="text-[10px] font-semibold text-slate-400">v1.6</span></div>
       <div id="modeBadge" class="text-[11px] text-slate-500 truncate">Detectando entorno…</div>
     </div>
     <button id="btnSettings" class="ml-auto w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-200/60" title="Configuración">
@@ -105,49 +105,63 @@
 
   <!-- Pestañas -->
   <nav class="flex gap-1 p-1 rounded-xl bg-slate-200/60">
-    <button class="tab" data-tab="a0">🎲 Tomar libres</button>
-    <button class="tab" data-tab="a1">1 · Fecha y resp.</button>
-    <button class="tab" data-tab="a2">2 · Cargar CRM</button>
+    <button class="tab" data-tab="a0">① Generar</button>
+    <button class="tab" data-tab="ar">② Registrar</button>
+    <button class="tab" data-tab="a1">Fecha/resp.</button>
+    <button class="tab" data-tab="a2">CRM</button>
   </nav>
 
-  <!-- ACCIÓN 0 · TOMAR CONTACTOS LIBRES -->
+  <!-- ① GENERAR LISTA (sin registrar) -->
   <section id="tab-a0" class="space-y-3 hidden">
     <div class="card p-3 space-y-3">
       <div>
         <span class="lbl">Meta del día por hoja</span>
         <div id="cuotas" class="space-y-1.5"></div>
       </div>
-      <div class="grid grid-cols-2 gap-2">
-        <div><label class="lbl" for="date0">Fecha contacto</label><input id="date0" type="date" class="inp"></div>
-        <label class="flex items-end gap-2 pb-2 text-[12px] text-slate-600 cursor-pointer"><input id="soloConNumero" type="checkbox" class="w-4 h-4 accent-indigo-600" checked> Solo con número</label>
+      <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer"><input id="soloConNumero" type="checkbox" class="w-4 h-4 accent-indigo-600" checked> Solo clientes con número de contacto</label>
+    </div>
+    <div id="ronda" class="card p-3"></div>
+    <button id="btnPropose" class="btn btn-primary w-full !py-2.5">🎲 Generar lista (sin registrar)</button>
+    <div id="prog0" class="hidden"></div>
+    <div id="result0"></div>
+    <div class="flex items-center justify-between text-[11.5px]">
+      <button id="btnRonda" class="text-slate-500 hover:text-rose-600 underline">Reiniciar ronda</button>
+      <button id="btnRun0" class="text-indigo-600 font-semibold hover:underline" title="Toma y registra en un paso, sin validar (usa la fecha y el responsable de ② Registrar)">Tomar y registrar directo</button>
+    </div>
+  </section>
+
+  <!-- ② REGISTRAR LOS VALIDADOS -->
+  <section id="tab-ar" class="space-y-3 hidden">
+    <div id="ronda2" class="card p-3"></div>
+    <div class="card p-3 space-y-3">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="lbl !mb-0" for="regCodes">Códigos validados en la difusión</label>
+          <span id="regCount" class="text-[11px] font-bold text-indigo-700"></span>
+        </div>
+        <textarea id="regCodes" rows="6" spellcheck="false" class="inp font-mono !text-[12px]" placeholder="Pega aquí los códigos que copiaste en la difusión"></textarea>
       </div>
+      <div><label class="lbl" for="date0">Fecha contacto</label><input id="date0" type="date" class="inp"></div>
       <div>
         <span class="lbl">Responsable</span>
         <div id="respChips0" class="grid grid-cols-2 gap-1.5"></div>
       </div>
     </div>
-
-    <!-- Avance de la ronda -->
-    <div id="ronda" class="card p-3"></div>
-
-    <!-- Paso 1: generar lista sin registrar -->
-    <button id="btnPropose" class="btn btn-primary w-full !py-2.5">① 🎲 Generar lista (sin registrar)</button>
-    <div id="prog0" class="hidden"></div>
-    <div id="result0"></div>
-
-    <!-- Paso 2: registrar los validados en la difusión -->
-    <div class="card p-3 space-y-2">
-      <div class="font-semibold text-[13px]">② Registrar los validados</div>
-      <textarea id="regCodes" rows="4" spellcheck="false" class="inp font-mono !text-[12px]" placeholder="Pega aquí los códigos que la difusión validó"></textarea>
-      <button id="btnRegistrar" class="btn btn-green w-full !py-2">✅ Registrar</button>
-      <div id="resultReg"></div>
-    </div>
-
-    <div class="flex items-center justify-between text-[11.5px]">
-      <button id="btnRonda" class="text-slate-500 hover:text-rose-600 underline">Reiniciar ronda</button>
-      <button id="btnRun0" class="text-indigo-600 font-semibold hover:underline" title="Toma y registra sin pasar por la validación">Tomar y registrar directo</button>
-    </div>
+    <button id="btnRegistrar" class="btn btn-green w-full !py-2.5">✅ Registrar</button>
+    <div id="progR" class="hidden"></div>
+    <div id="resultReg"></div>
   </section>
+
+  <!-- Confirmación dentro del panel (Excel Online bloquea las ventanas confirm del navegador) -->
+  <div id="askBox" class="hidden fixed inset-0 z-[60] bg-slate-900/40 flex items-center justify-center p-4">
+    <div class="card p-4 w-full max-w-[360px] shadow-xl space-y-3">
+      <div id="askMsg" class="text-[13px] text-slate-700 leading-relaxed"></div>
+      <div class="flex gap-2">
+        <button id="askNo" class="btn btn-ghost flex-1">Cancelar</button>
+        <button id="askYes" class="btn btn-primary flex-1">Confirmar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ACCIÓN 1 -->
   <section id="tab-a1" class="space-y-3">
@@ -226,6 +240,6 @@
 
 <div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
 
-<script src="app.js?v=1.5.0"></script>
+<script src="app.js?v=1.6.0"></script>
 </body>
 </html>

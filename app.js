@@ -70,6 +70,19 @@ async function copyText(t) {
     document.body.appendChild(ta); ta.select(); let ok = false; try { ok = document.execCommand('copy'); } catch (e2) {} ta.remove(); return ok;
   }
 }
+/** Confirmación dentro del panel. Excel Online bloquea window.confirm en los complementos
+ *  (lo responde como "Cancelar" sin mostrarlo), por eso se usa este cuadro propio. */
+function ask(msg, okLabel = 'Confirmar') {
+  return new Promise((resolve) => {
+    const box = document.getElementById('askBox');
+    document.getElementById('askMsg').textContent = msg;
+    const yes = document.getElementById('askYes'), no = document.getElementById('askNo');
+    yes.textContent = okLabel;
+    const fin = (v) => { box.classList.add('hidden'); yes.onclick = no.onclick = null; resolve(v); };
+    yes.onclick = () => fin(true); no.onclick = () => fin(false);
+    box.classList.remove('hidden'); yes.focus();
+  });
+}
 function colLetter(c) { let s = ''; c++; while (c > 0) { const m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); } return s; }
 
 /* ---------------- Estado persistente (solo preferencias) ---------------- */
@@ -515,8 +528,8 @@ function mezclar(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.fl
 
 async function runAction0() {
   const date = $('#date0').value;
-  if (!date) return toast('Elige la fecha.', 'warn');
-  if (!P.resp) return toast('Marca un responsable.', 'warn');
+  if (!date) { setTab('ar'); return toast('Elige la fecha en ② Registrar.', 'warn'); }
+  if (!P.resp) { setTab('ar'); return toast('Marca un responsable en ② Registrar.', 'warn'); }
   const hojas = selectedSheets();
   if (!hojas.length) return toast('Marca al menos una hoja.', 'warn');
   const total = hojas.reduce((n, h) => n + cuotaDe(h), 0);
@@ -525,7 +538,7 @@ async function runAction0() {
   const allowed = allowedKeys(1);
   if (!allowed.has(kDate) || !allowed.has(kResp)) return toast('La columna de fecha o de responsable apunta a una columna protegida.', 'error', 4500);
   const soloNum = $('#soloConNumero').checked;
-  if (!confirm(`Se tomarán ${total} contactos libres y se registrarán con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}. ¿Continuar?`)) return;
+  if (!await ask(`Se tomarán ${total} contactos libres y se registrarán con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}.`, 'Tomar y registrar')) return;
 
   await busy('#btnRun0', async () => {
     const prog = $('#prog0');
@@ -589,10 +602,12 @@ function renderRonda() {
   const meta = hojas.reduce((n, h) => n + cuotaDe(h), 0), hechos = R.registrados.length;
   const falt = faltanPorHoja(), totalFalta = Object.values(falt).reduce((a, b) => a + b, 0);
   const pct = meta ? Math.min(100, Math.round((hechos / meta) * 100)) : 0;
-  $('#ronda').innerHTML = `<div class="flex items-center justify-between text-[12.5px]"><b>Registrados hoy</b><span class="tabular-nums font-bold ${hechos >= meta && meta ? 'text-emerald-700' : 'text-indigo-700'}">${hechos}/${meta}</span></div>
+  const htmlRonda = `<div class="flex items-center justify-between text-[12.5px]"><b>Registrados hoy</b><span class="tabular-nums font-bold ${hechos >= meta && meta ? 'text-emerald-700' : 'text-indigo-700'}">${hechos}/${meta}</span></div>
     <div class="h-2 bg-slate-200 rounded-full overflow-hidden my-1.5"><div class="h-full ${hechos >= meta && meta ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
     <div class="text-[11px] text-slate-500">${hojas.map((h) => `${esc(h)}: ${cuotaDe(h) - falt[h]}/${cuotaDe(h)}`).join(' · ')}${R.propuestos.length ? ` · ${R.propuestos.length} propuestos` : ''}</div>`;
-  $('#btnPropose').innerHTML = hechos && totalFalta ? `① 🎲 Generar diferencia (faltan ${totalFalta})` : hechos >= meta && meta ? '✓ Meta completa' : '① 🎲 Generar lista (sin registrar)';
+  $('#ronda').innerHTML = htmlRonda;
+  $('#ronda2').innerHTML = htmlRonda;
+  $('#btnPropose').innerHTML = hechos && totalFalta ? `🎲 Generar diferencia (faltan ${totalFalta})` : hechos >= meta && meta ? '✓ Meta completa' : '🎲 Generar lista (sin registrar)';
   $('#btnPropose').disabled = !!(meta && totalFalta === 0);
 }
 
@@ -651,10 +666,10 @@ async function registrarValidados() {
   const date = $('#date0').value;
   if (!date) return toast('Elige la fecha.', 'warn');
   if (!P.resp) return toast('Marca un responsable.', 'warn');
-  if (!confirm(`¿Registrar ${lista.length} código(s) con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}?`)) return;
+  if (!await ask(`¿Registrar ${lista.length} código(s) con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}?`, 'Registrar')) return;
   const R = ronda();
   await busy('#btnRegistrar', async () => {
-    const prog = $('#prog0');
+    const prog = $('#progR');
     setProgress(prog, 0.1, 'Revisando…');
     const { idxs, libreGlobal, kDate, kResp } = await leerLibres();
     const serial = excelSerial(date), writes = [], ok = [], yaReg = [], noExiste = [];
@@ -672,14 +687,15 @@ async function registrarValidados() {
     if (writes.length) await applyWrites(writes, `Registrar ${ok.length} validados`, prog, 1);
     setProgress(prog, 1, 'Listo');
     R.registrados.push(...ok); persist();
-    $('#regCodes').value = '';
+    $('#regCodes').value = ''; $('#regCount').textContent = '';
     APP.tomados = null; renderTomados(); // la propuesta ya se procesó
     const falta = Object.values(faltanPorHoja()).reduce((a, b) => a + b, 0);
     $('#resultReg').innerHTML = `<div class="rounded-lg bg-emerald-50 p-2 text-[12px] space-y-0.5">
       <div class="text-emerald-800 font-semibold">✅ ${ok.length} registrados</div>
       ${yaReg.length ? `<div class="text-amber-700">${yaReg.length} ya estaban registrados: ${esc(yaReg.join(', '))}</div>` : ''}
       ${noExiste.length ? `<div class="text-rose-700">${noExiste.length} no existen en las hojas: ${esc(noExiste.join(', '))}</div>` : ''}
-      <div class="${falta ? 'text-indigo-700' : 'text-emerald-700'} font-semibold">${falta ? `Faltan ${falta} → pulsa ① Generar diferencia` : '🎉 Meta del día completa'}</div></div>`;
+      <div class="${falta ? 'text-indigo-700' : 'text-emerald-700'} font-semibold">${falta ? `Faltan ${falta}` : '🎉 Meta del día completa'}</div>
+      ${falta ? `<button class="btn btn-primary w-full !py-1.5 !text-[12px] mt-1" data-ir-generar>① Generar diferencia (${falta})</button>` : ''}</div>`;
     renderRonda();
     toast(`${ok.length} registrados${falta ? ` · faltan ${falta}` : ' · meta completa'}`, 'success', 3500);
   });
@@ -706,7 +722,7 @@ function renderTomados(avisos = []) {
         <td class="py-1 px-2 text-right text-slate-500 text-[10.5px]">${esc(e.hoja)}</td></tr>`).join('')}
       </tbody></table>
     </div>
-    <div class="text-[10.5px] text-slate-500">${APP.tomadosModo === 'propuesta' ? 'Pega la lista en la difusión → 🔎 Validar. Luego pega aquí abajo (②) los que sí están.' : 'En la difusión: Envío → 🔎 Validar lista del complemento → pegar.'}</div>
+    <div class="text-[10.5px] text-slate-500">${APP.tomadosModo === 'propuesta' ? 'Pega la lista en la difusión → 🔎 Validar. Luego, en la pestaña ② Registrar, pega los que sí están.' : 'En la difusión: Envío → 🔎 Validar lista del complemento → pegar.'}</div>
   </div>`;
 }
 /** Lista separada por tabulaciones: código, razón social, número (se pega directo en la difusión o en Excel) */
@@ -859,7 +875,7 @@ async function addMissing(action) {
   const hoja = $(`#addSheet${action}`).value;
   const conRazon = action === 2 && $('#addRazon2') && $('#addRazon2').checked;
   if (!hoja) return toast('Elige la hoja donde agregarlos.', 'warn');
-  if (!confirm(`¿Agregar ${pend.codes.length} código(s) al final de la hoja "${hoja}"?`)) return;
+  if (!await ask(`¿Agregar ${pend.codes.length} código(s) al final de la hoja "${hoja}"?`, 'Agregar')) return;
   const prog = $(`#prog${action}`);
   await busy(`#btnRun${action}`, async () => {
     setProgress(prog, 0.1, `Revisando "${hoja}"…`);
@@ -962,7 +978,7 @@ async function busy(btnSel, fn) {
     console.error(err);
     toast(err.message || String(err), 'error', 4500);
     // Oculta la barra de progreso que corresponde al botón (nunca el botón)
-    const PROG = { '#btnRun0': '#prog0', '#btnPropose': '#prog0', '#btnRegistrar': '#prog0', '#btnRun1': '#prog1', '#btnCheck1': '#prog1', '#btnRun2': '#prog2' };
+    const PROG = { '#btnRun0': '#prog0', '#btnPropose': '#prog0', '#btnRegistrar': '#progR', '#btnRun1': '#prog1', '#btnCheck1': '#prog1', '#btnRun2': '#prog2' };
     const pg = PROG[btnSel] && document.querySelector(PROG[btnSel]); if (pg) pg.classList.add('hidden');
   } finally { APP.busy = false; btn.disabled = false; btn.innerHTML = html; }
 }
@@ -976,7 +992,7 @@ function renderFooter() {
 }
 async function undoLast() {
   if (!APP.undo || APP.busy) return;
-  if (!confirm(`¿Deshacer ${APP.undo.label}? Se restaurarán los valores anteriores.`)) return;
+  if (!await ask(`¿Deshacer ${APP.undo.label}? Se restaurarán los valores anteriores.`, 'Deshacer')) return;
   APP.busy = true;
   try {
     const porHoja = new Map();
@@ -990,6 +1006,7 @@ function setTab(t) {
   P.tab = t; persist();
   $$('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === t));
   $('#tab-a0').classList.toggle('hidden', t !== 'a0');
+  $('#tab-ar').classList.toggle('hidden', t !== 'ar');
   $('#tab-a1').classList.toggle('hidden', t !== 'a1');
   $('#tab-a2').classList.toggle('hidden', t !== 'a2');
 }
@@ -1093,7 +1110,9 @@ function bindEvents() {
   $('#btnRun0').addEventListener('click', runAction0);
   $('#btnPropose').addEventListener('click', proponer);
   $('#btnRegistrar').addEventListener('click', registrarValidados);
-  $('#btnRonda').addEventListener('click', () => { if (!confirm('¿Reiniciar la ronda de hoy? (no borra nada del Excel)')) return; P.ronda = null; persist(); APP.tomados = null; renderTomados(); $('#resultReg').innerHTML = ''; renderRonda(); });
+  $('#regCodes').addEventListener('input', () => { const n = parseCodes($('#regCodes').value).list.length; $('#regCount').textContent = n ? `${n} códigos` : ''; });
+  $('#resultReg').addEventListener('click', (e) => { if (e.target.closest('[data-ir-generar]')) { setTab('a0'); proponer(); } });
+  $('#btnRonda').addEventListener('click', async () => { if (!await ask('¿Reiniciar la ronda de hoy? No borra nada del Excel.', 'Reiniciar')) return; P.ronda = null; persist(); APP.tomados = null; renderTomados(); $('#resultReg').innerHTML = ''; renderRonda(); });
   $('#date0').addEventListener('change', renderRonda);
   $('#cuotas').addEventListener('change', (e) => { const i = e.target.closest('[data-cuota]'); if (!i) return; P.cuotas[i.dataset.cuota] = Math.max(0, Math.round(+i.value || 0)); persist(); renderCuotas(); renderRonda(); });
   $('#respChips0').addEventListener('click', (e) => { const b = e.target.closest('[data-resp0]'); if (!b) return; P.resp = b.dataset.resp0; persist(); renderRespChips0(); renderRespChips(); });

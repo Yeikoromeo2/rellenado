@@ -52,9 +52,9 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
   - Se puede deshacer con el botón inferior.
 
 **🎲 Tomar libres en dos filtros (flujo recomendado)**
-1. **Complemento → ① Generar lista (sin registrar):** propone contactos libres según la meta por hoja (15 + 15). No escribe nada. Copia la lista.
+1. **Complemento → pestaña ① Generar → Generar lista (sin registrar):** propone contactos libres según la meta por hoja (15 + 15). No escribe nada. Copia la lista.
 2. **Difusión → 🔎 Validar lista del complemento:** pega la lista y te dice cuáles **sí están** en la base. **📋 Copiar y agregar a la lista del día** los copia y los suma a la *Lista del día* (x/30).
-3. **Complemento → ② Registrar los validados:** pega lo copiado. Registra solo esos (fecha y responsable) y muestra cuántos faltan.
+3. **Complemento → pestaña ② Registrar:** pega lo copiado, revisa fecha y responsable, y confirma en el cuadro del panel. Registra solo esos (fecha y responsable) y muestra cuántos faltan.
 4. **Complemento → ① Generar diferencia:** propone solo lo que falta, sin repetir los ya propuestos. Repite 2–4 hasta 30.
 5. **Difusión → ✅ Generar lote** desde la Lista del día. Todo lo demás sigue igual.
 - *Tomar y registrar directo* hace todo en un paso, sin validar. *Reiniciar ronda* empieza de cero, sin tocar el Excel.
