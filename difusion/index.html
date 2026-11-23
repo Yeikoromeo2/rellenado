@@ -135,6 +135,14 @@
   <!-- ===================== ENVÍO ===================== -->
   <section id="tab-envio" class="hidden space-y-4">
 
+    <label id="onboard" class="hidden card p-8 border-2 border-dashed !border-indigo-300 bg-indigo-50/40 text-center cursor-pointer hover:bg-indigo-50 transition block">
+      <input id="xlsFile2" type="file" accept=".xlsx,.xls" class="hidden">
+      <div class="text-5xl mb-2">📥</div>
+      <div class="text-[18px] font-bold text-slate-800">Carga tu Excel de contactos</div>
+      <div class="text-[13px] text-slate-500 mt-1">Haz clic o arrastra el archivo aquí · columnas: Código de Cliente, Razón Social y Número de Contacto</div>
+      <span class="btn btn-primary mt-4 pointer-events-none">Elegir archivo .xlsx</span>
+    </label>
+
     <div class="grid lg:grid-cols-12 gap-4">
       <!-- Control -->
       <div class="card p-5 lg:col-span-5 flex flex-col">
@@ -211,12 +219,10 @@
           <span class="lbl">Firma</span>
           <div id="ejecChips" class="flex flex-wrap gap-1.5"></div>
         </div>
-        <div class="flex gap-2">
-          <button id="genLote" class="btn btn-primary flex-1">🎲 Nuevo lote de 30</button>
-          <label id="dropZone" class="btn btn-ghost cursor-pointer" title="Cargar o actualizar la base de clientes (.xlsx)">
-            📄 Base<input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
-          </label>
-        </div>
+        <label id="dropZone" class="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 py-2.5 text-[13px] font-semibold text-slate-600 cursor-pointer transition">
+          📥 Cargar Excel de contactos<input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
+        </label>
+        <button id="genLote" class="btn btn-primary w-full">🎲 Nuevo lote de 30</button>
         <div id="importResult" class="hidden text-[11.5px] rounded-lg p-2"></div>
       </div>
 
@@ -946,6 +952,7 @@ function stats() {
 }
 function renderStats() {
   const s = stats();
+  const ob = document.getElementById('onboard'); if (ob) ob.classList.toggle('hidden', S.clientOrder.length > 0);
   $('#stTotal').textContent = s.total.toLocaleString('es-PE');
   $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
   $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
@@ -1197,6 +1204,7 @@ function nextPending() { const l = getSendLote(); const p = lotePending(l); retu
 /** Estado actual de la jornada: activo · escribiendo · descanso · fuera · detenido · completo · esperando */
 function cadStatus(now = Date.now()) {
   const n = nextPending();
+  if (!getSendLote()) return { k: 'sinlote' };
   if (!n) return { k: 'completo' };
   if (R.blocked) return { k: 'esperando', n };
   if (!R.running) return { k: 'detenido', n };
@@ -1318,6 +1326,7 @@ const ST_UI = {
   esperando: ['🔔 Tu turno', 'bg-emerald-200 text-emerald-800 animate-pulse', 'usa el botón verde'],
   detenido: ['⏹ Detenido', 'bg-slate-200 text-slate-600', 'pulsa Comenzar'],
   completo: ['✓ Completo', 'bg-emerald-100 text-emerald-700', 'sin pendientes'],
+  sinlote: ['Sin lote', 'bg-slate-200 text-slate-600', 'genera un lote abajo'],
   cupo: ['⏳ Cupo lleno', 'bg-rose-100 text-rose-700', 'para liberar cupo'],
   pausa: ['⛔ Pausa', 'bg-rose-200 text-rose-800', 'de pausa'],
 };
@@ -1765,6 +1774,14 @@ const dz = $('#dropZone');
 ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('border-indigo-400', 'bg-indigo-50'); }));
 ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('border-indigo-400', 'bg-indigo-50'); }));
 dz.addEventListener('drop', e => handleExcelFile(e.dataTransfer.files[0]));
+$('#xlsFile2').addEventListener('change', e => { handleExcelFile(e.target.files[0]); e.target.value = ''; });
+// Soltar un Excel en cualquier parte de la página también lo carga
+window.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.items || []].some(i => i.kind === 'file')) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (!f || e.defaultPrevented) return;
+  if (/\.(xlsx|xls)$/i.test(f.name)) { e.preventDefault(); handleExcelFile(f); }
+});
 // Lotes
 $('#genLote').addEventListener('click', generateLote);
 $('#ejecChips').addEventListener('click', e => {
