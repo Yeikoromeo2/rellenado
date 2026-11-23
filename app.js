@@ -373,22 +373,32 @@ function renderDatePreview() {
   $('#datePreview').textContent = v ? `${fmtDate(v, P.dateFmt)}  (${P.dateFmt})` : '—';
 }
 
-async function runAction1() {
+/** Fecha de Excel (número de serie) → texto en el formato configurado */
+function serialToText(v) {
+  if (typeof v === 'number' && v > 20000 && v < 80000) {
+    const d = new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000);
+    return fmtDate(`${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`, P.dateFmt);
+  }
+  return isEmpty(v) ? '' : String(v);
+}
+
+/** Acción 1. dryRun = true solo valida y arma el reporte, sin escribir nada. */
+async function runAction1(dryRun = false) {
   const { list } = parseCodes($('#codes').value);
   const date = $('#date').value;
   if (!list.length) return toast('Pega al menos un código de cliente.', 'warn');
-  if (!date) return toast('Elige una fecha.', 'warn');
-  if (!P.resp) return toast('Marca un responsable.', 'warn');
+  if (!dryRun && !date) return toast('Elige una fecha.', 'warn');
+  if (!dryRun && !P.resp) return toast('Marca un responsable.', 'warn');
   const kDate = normKey(P.dateCol), kResp = normKey(P.respCol);
   const allowed = allowedKeys(1);
   if (!allowed.has(kDate) || !allowed.has(kResp)) return toast('La columna de fecha o de responsable apunta a una columna protegida. Revisa ⚙ Configuración.', 'error', 4500);
 
-  await busy('#btnRun1', async () => {
+  await busy(dryRun ? '#btnCheck1' : '#btnRun1', async () => {
     const prog = $('#prog1');
     setProgress(prog, 0.05, 'Leyendo las hojas…');
     const { idxs, errores } = await buildIndexes([kDate, kResp]);
-    const serial = excelSerial(date);
-    const writes = [], porHoja = {}, notas = [...errores];
+    const serial = date ? excelSerial(date) : 0;
+    const writes = [], porHoja = {}, notas = [...errores], detalle = [];
     for (const idx of idxs) {
       const faltan = [[kDate, P.dateCol], [kResp, P.respCol]].filter(([k]) => !idx.h.cols.has(k)).map(([, n]) => n);
       porHoja[idx.sheet] = { encontrados: 0, filas: 0, celdas: 0, conDatos: 0, repetidos: 0, faltan };
@@ -397,30 +407,91 @@ async function runAction1() {
     const notFound = [];
     for (const { key, raw } of list) {
       const donde = idxs.filter((idx) => idx.rows.has(key));
-      if (!donde.length) { notFound.push(raw); continue; }
+      if (!donde.length) { notFound.push(raw); detalle.push({ codigo: raw, estado: 'no_existe', filas: [] }); continue; }
+      const filas = [];
       for (const idx of donde) {
         const st = porHoja[idx.sheet]; st.encontrados++;
         const rows = idx.rows.get(key);
         if (rows.length > 1) st.repetidos++;
-        if (st.faltan.length) continue;
         for (const row of rows) {
+          const fOld = existingAt(idx, kDate, row), rOld = existingAt(idx, kResp, row);
+          filas.push({ hoja: idx.sheet, fila: row + 1, fecha: serialToText(fOld), resp: isEmpty(rOld) ? '' : String(rOld), lleno: !isEmpty(fOld) || !isEmpty(rOld), completo: !isEmpty(fOld) && !isEmpty(rOld) });
+          if (st.faltan.length) continue;
           let tocada = false;
           for (const [k, value, fmt] of [[kDate, serial, P.dateFmt], [kResp, P.resp, null]]) {
             const old = existingAt(idx, k, row);
             if (!isEmpty(old)) { st.conDatos++; continue; } // nunca se sobrescribe
-            writes.push({ sheet: idx.sheet, row, col: absCol(idx, k), key: k, value, fmt, old });
+            if (!dryRun) writes.push({ sheet: idx.sheet, row, col: absCol(idx, k), key: k, value, fmt, old });
             st.celdas++; tocada = true;
           }
           if (tocada) st.filas++;
         }
       }
+      // Estado del código: ya registrado (todas sus filas tienen fecha y responsable), nuevo (ninguna) o parcial
+      const estado = filas.every((f) => f.completo) ? 'registrado' : filas.some((f) => f.lleno) ? 'parcial' : 'nuevo';
+      detalle.push({ codigo: raw, estado, filas });
     }
-    if (writes.length) await applyWrites(writes, `Acción 1 (${writes.length} celdas)`, prog, 1);
-    setProgress(prog, 1, 'Listo');
+    if (!dryRun && writes.length) await applyWrites(writes, `Acción 1 (${writes.length} celdas)`, prog, 1);
+    setProgress(prog, 1, dryRun ? 'Validación lista (no se escribió nada)' : 'Listo');
     APP.missing[1] = notFound.length ? { codes: notFound, serial, resp: P.resp } : null;
-    renderResult('#result1', 1, { total: list.length, porHoja, notas, notFound });
-    toast(writes.length ? `Acción 1 aplicada: ${writes.length} celdas` : 'No hubo cambios que aplicar', writes.length ? 'success' : 'warn');
+    APP.report1 = { detalle, dryRun, filtro: 'todos' };
+    renderResult('#result1', 1, { total: list.length, porHoja, notas, notFound, dryRun });
+    renderReport();
+    const reg = detalle.filter((d) => d.estado === 'registrado').length;
+    if (dryRun) toast(`Validación: ${list.length - notFound.length} encontrados, ${reg} ya registrados`, 'ok', 3500);
+    else toast(writes.length ? `Acción 1 aplicada: ${writes.length} celdas` : 'No hubo cambios que aplicar', writes.length ? 'success' : 'warn');
   });
+}
+
+/* ---------- Reporte detallado por código ---------- */
+const ESTADO_UI = {
+  registrado: ['Ya registrado', 'bg-amber-100 text-amber-800'],
+  parcial: ['Parcial', 'bg-sky-100 text-sky-800'],
+  nuevo: ['Nuevo', 'bg-emerald-100 text-emerald-800'],
+  no_existe: ['No existe', 'bg-rose-100 text-rose-700'],
+};
+function renderReport() {
+  const box = $('#report1'), R = APP.report1;
+  if (!R) { box.innerHTML = ''; return; }
+  const cuenta = (e) => R.detalle.filter((d) => d.estado === e).length;
+  const encontrados = R.detalle.length - cuenta('no_existe');
+  const filtros = [['todos', 'Todos', R.detalle.length], ['registrado', 'Ya registrados', cuenta('registrado')], ['nuevo', 'Nuevos', cuenta('nuevo')], ['parcial', 'Parciales', cuenta('parcial')], ['no_existe', 'No existen', cuenta('no_existe')]].filter(([k, , n]) => k === 'todos' || n);
+  const lista = R.detalle.filter((d) => R.filtro === 'todos' || d.estado === R.filtro);
+  box.innerHTML = `<div class="card p-3 space-y-2">
+    <div class="flex items-center justify-between"><span class="font-semibold text-[13px]">📋 Reporte de validación</span>
+      <span class="text-[11px] text-slate-500">${R.dryRun ? 'sin escribir' : 'después de rellenar'}</span></div>
+    <div class="text-[12.5px] leading-relaxed">Se encontraron <b>${encontrados}</b> de ${R.detalle.length}: <b class="text-amber-700">${cuenta('registrado')} ya registrados</b>, <b class="text-emerald-700">${cuenta('nuevo')} nuevos</b>${cuenta('parcial') ? `, <b class="text-sky-700">${cuenta('parcial')} parciales</b>` : ''}${cuenta('no_existe') ? ` y <b class="text-rose-700">${cuenta('no_existe')} no existen</b>` : ''}.</div>
+    <div class="flex flex-wrap gap-1">${filtros.map(([k, l, n]) => `<button data-rfiltro="${k}" class="text-[11px] font-semibold px-2 py-1 rounded-full border ${R.filtro === k ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}">${l} ${n}</button>`).join('')}</div>
+    <div class="max-h-64 overflow-y-auto scroll-thin border border-slate-100 rounded-lg">
+      <table class="w-full text-[11.5px]"><tbody>
+      ${lista.map((d) => `<tr class="border-b border-slate-100 align-top">
+        <td class="py-1.5 px-2 font-mono font-semibold">${esc(d.codigo)}</td>
+        <td class="py-1.5 px-1"><span class="px-1.5 py-0.5 rounded-full text-[10.5px] font-bold ${ESTADO_UI[d.estado][1]}">${ESTADO_UI[d.estado][0]}</span></td>
+        <td class="py-1.5 px-2 text-slate-600">${d.filas.length ? d.filas.map((f) => `${esc(f.hoja)} · fila ${f.fila}${f.fecha || f.resp ? ` · <span class="text-slate-500">${esc([f.fecha, f.resp].filter(Boolean).join(' · '))}</span>` : ''}`).join('<br>') : '—'}</td>
+      </tr>`).join('') || '<tr><td class="p-3 text-center text-slate-400">Sin códigos en este filtro</td></tr>'}
+      </tbody></table>
+    </div>
+    <div class="grid grid-cols-2 gap-1.5">
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-rcopy="registrado" ${cuenta('registrado') ? '' : 'disabled'}>📋 Copiar ya registrados</button>
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-rcopy="nuevo" ${cuenta('nuevo') ? '' : 'disabled'}>📋 Copiar nuevos</button>
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px] col-span-2" data-rexport>⬇ Descargar reporte (.xlsx)</button>
+    </div>
+    <div class="text-[10.5px] text-slate-500">Pega los "ya registrados" en la herramienta de difusión → Cola → 🧹 Quitar, y luego ➕ Completar para generar la diferencia.</div>
+  </div>`;
+}
+function exportReport() {
+  const R = APP.report1; if (!R) return;
+  if (typeof XLSX === 'undefined') return toast('No cargó la librería de Excel.', 'error');
+  const filas = [];
+  for (const d of R.detalle) {
+    if (!d.filas.length) filas.push({ 'Código de Cliente': d.codigo, Estado: ESTADO_UI[d.estado][0], Hoja: '', Fila: '', [P.dateCol]: '', [P.respCol]: '' });
+    for (const f of d.filas) filas.push({ 'Código de Cliente': d.codigo, Estado: ESTADO_UI[d.estado][0], Hoja: f.hoja, Fila: f.fila, [P.dateCol]: f.fecha, [P.respCol]: f.resp });
+  }
+  const ws = XLSX.utils.json_to_sheet(filas);
+  ws['!cols'] = [16, 14, 22, 7, 16, 20].map((w) => ({ wch: w }));
+  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Validación');
+  XLSX.writeFile(wb, `Validacion_${todayISO()}.xlsx`);
+  toast('Reporte descargado', 'success');
 }
 
 /* =============================================================
@@ -622,7 +693,7 @@ function setProgress(el, p, label) {
   el.innerHTML = `<div class="flex justify-between text-[11px] text-slate-500 mb-1"><span>${esc(label)}</span><span class="tabular-nums">${pct}%</span></div>
     <div class="h-2 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${pct === 100 ? 'bg-emerald-500' : 'bg-indigo-500'} transition-all duration-200" style="width:${pct}%"></div></div>`;
 }
-function renderResult(sel, action, { total, porHoja, notas, notFound }) {
+function renderResult(sel, action, { total, porHoja, notas, notFound, dryRun }) {
   const hojas = Object.entries(porHoja);
   const celdas = hojas.reduce((s, [, x]) => s + x.celdas, 0);
   const encontrados = total - notFound.length;
@@ -631,7 +702,7 @@ function renderResult(sel, action, { total, porHoja, notas, notFound }) {
   $(sel).innerHTML = `<div class="card p-3 space-y-2">
     <div class="grid grid-cols-3 gap-1.5 text-center">
       <div class="rounded-lg bg-emerald-50 py-2"><div class="text-[16px] font-bold text-emerald-700 tabular-nums">${encontrados}/${total}</div><div class="text-[10.5px] text-emerald-800/80">Encontrados</div></div>
-      <div class="rounded-lg bg-emerald-50 py-2"><div class="text-[16px] font-bold text-emerald-700 tabular-nums">${celdas}</div><div class="text-[10.5px] text-emerald-800/80">Celdas escritas</div></div>
+      <div class="rounded-lg bg-emerald-50 py-2"><div class="text-[16px] font-bold text-emerald-700 tabular-nums">${celdas}</div><div class="text-[10.5px] text-emerald-800/80">${dryRun ? 'Celdas por llenar' : 'Celdas escritas'}</div></div>
       <div class="rounded-lg ${nf ? 'bg-amber-50' : 'bg-emerald-50'} py-2"><div class="text-[16px] font-bold ${nf ? 'text-amber-700' : 'text-emerald-700'} tabular-nums">${nf}</div><div class="text-[10.5px] ${nf ? 'text-amber-800/80' : 'text-emerald-800/80'}">No están</div></div>
     </div>
     <div class="space-y-1">
@@ -665,7 +736,7 @@ async function busy(btnSel, fn) {
   try { await fn(); } catch (err) {
     console.error(err);
     toast(err.message || String(err), 'error', 4500);
-    $(btnSel.replace('btnRun', 'prog')).classList.add('hidden');
+    const pg = $(btnSel.replace('btnRun', 'prog').replace('btnCheck', 'prog')); if (pg) pg.classList.add('hidden');
   } finally { APP.busy = false; btn.disabled = false; btn.innerHTML = html; }
 }
 function renderFooter() {
@@ -784,11 +855,18 @@ function bindEvents() {
     const r = parseCodes($('#codes').value);
     if (r.dup || r.empty) { $('#codes').value = r.list.map((x) => x.raw).join('\n'); P.codes = $('#codes').value; persist(); renderCodesCounter(); }
   });
-  $('#btnClearCodes').addEventListener('click', () => { $('#codes').value = ''; P.codes = ''; persist(); renderCodesCounter(); $('#result1').innerHTML = ''; $('#prog1').classList.add('hidden'); APP.missing[1] = null; });
+  $('#btnClearCodes').addEventListener('click', () => { $('#codes').value = ''; P.codes = ''; persist(); renderCodesCounter(); $('#result1').innerHTML = ''; $('#prog1').classList.add('hidden'); APP.missing[1] = null; APP.report1 = null; renderReport(); });
   $('#date').addEventListener('input', renderDatePreview);
   $('#btnToday').addEventListener('click', () => { $('#date').value = todayISO(); renderDatePreview(); });
   $('#respChips').addEventListener('click', (e) => { const b = e.target.closest('[data-resp]'); if (!b) return; P.resp = b.dataset.resp; persist(); renderRespChips(); });
-  $('#btnRun1').addEventListener('click', runAction1);
+  $('#btnRun1').addEventListener('click', () => runAction1(false));
+  $('#btnCheck1').addEventListener('click', () => runAction1(true));
+  $('#report1').addEventListener('click', async (e) => {
+    const f = e.target.closest('[data-rfiltro]'); if (f) { APP.report1.filtro = f.dataset.rfiltro; renderReport(); return; }
+    const c = e.target.closest('[data-rcopy]');
+    if (c) { const cods = APP.report1.detalle.filter((d) => d.estado === c.dataset.rcopy).map((d) => d.codigo); if (await copyText(cods.join('\n'))) toast(`${cods.length} código(s) copiados`, 'success'); return; }
+    if (e.target.closest('[data-rexport]')) exportReport();
+  });
   // Acción 2
   $('#crmFile').addEventListener('change', (e) => { readCrmFile(e.target.files[0]); e.target.value = ''; });
   $('#btnRefreshCols').addEventListener('click', refreshColumnMatch);

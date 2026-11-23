@@ -51,6 +51,11 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
   - En la Acción 2 puedes incluir Razón Social y Número del CRM, **solo en esas filas nuevas**.
   - Se puede deshacer con el botón inferior.
 
+**Validar antes de rellenar (Acción 1)**
+- **🔍 Validar** revisa los códigos en las hojas marcadas **sin escribir nada** y muestra un reporte: *"Se encontraron 15 de 17: 8 ya registrados, 7 nuevos y 2 no existen"*.
+- Por cada código indica hoja, fila, fecha y responsable que ya tiene. Se puede filtrar, copiar los ya registrados o los nuevos, y descargar el reporte en Excel.
+- Los "ya registrados" se pegan en la herramienta de difusión (Cola → 🧹 Quitar) para sacarlos del lote y completar la diferencia con contactos nuevos.
+
 **Reglas de protección (las dos acciones)**
 - `Customer ID` solo se usa para buscar la fila. Nunca se escribe en ella.
 - `Razón Social` y `Número de Contacto` nunca se tocan.

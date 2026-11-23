@@ -39,7 +39,7 @@
   <header class="flex items-center gap-2">
     <img src="assets/icon-32.png" alt="" class="w-7 h-7 rounded-md">
     <div class="leading-tight min-w-0">
-      <div class="font-bold text-[14px]">Rellenado CRM <span class="text-[10px] font-semibold text-slate-400">v1.2</span></div>
+      <div class="font-bold text-[14px]">Rellenado CRM <span class="text-[10px] font-semibold text-slate-400">v1.3</span></div>
       <div id="modeBadge" class="text-[11px] text-slate-500 truncate">Detectando entorno…</div>
     </div>
     <button id="btnSettings" class="ml-auto w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-200/60" title="Configuración">
@@ -139,9 +139,13 @@
       <p class="text-[11.5px] text-slate-500">🛡️ Busca en todas las hojas marcadas y solo rellena celdas <b>vacías</b> de FECHA CONTACTO y RESPONSABLE.</p>
     </div>
 
-    <button id="btnRun1" class="btn btn-primary w-full !py-2.5">▶ Ejecutar acción 1</button>
+    <div class="grid grid-cols-5 gap-2">
+      <button id="btnCheck1" class="btn btn-ghost col-span-2 !py-2.5" title="Revisa sin escribir nada">🔍 Validar</button>
+      <button id="btnRun1" class="btn btn-primary col-span-3 !py-2.5">▶ Ejecutar acción 1</button>
+    </div>
     <div id="prog1" class="hidden"></div>
     <div id="result1"></div>
+    <div id="report1"></div>
   </section>
 
   <!-- ACCIÓN 2 -->
@@ -182,6 +186,6 @@
 
 <div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
 
-<script src="app.js?v=1.2.1"></script>
+<script src="app.js?v=1.3.0"></script>
 </body>
 </html>
