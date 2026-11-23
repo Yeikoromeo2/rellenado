@@ -51,11 +51,13 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
   - En la Acción 2 puedes incluir Razón Social y Número del CRM, **solo en esas filas nuevas**.
   - Se puede deshacer con el botón inferior.
 
-**🎲 Tomar libres (flujo recomendado)**
-1. En el complemento, pestaña **🎲 Tomar libres**: indica cuántos tomar de cada hoja (15 + 15 por defecto), la fecha y el responsable.
-2. **Tomar y registrar** elige al azar códigos **libres** (sin FECHA CONTACTO ni RESPONSABLE en ninguna hoja marcada) y los registra de inmediato. Se puede deshacer.
-3. **📋 Copiar lista para difusión** copia código, razón social y número.
-4. En la herramienta de difusión: **Envío → 🔎 Lote desde códigos del complemento** → pegar → **Buscar** → **Generar lote**.
+**🎲 Tomar libres en dos filtros (flujo recomendado)**
+1. **Complemento → ① Generar lista (sin registrar):** propone contactos libres según la meta por hoja (15 + 15). No escribe nada. Copia la lista.
+2. **Difusión → 🔎 Validar lista del complemento:** pega la lista y te dice cuáles **sí están** en la base. **📋 Copiar y agregar a la lista del día** los copia y los suma a la *Lista del día* (x/30).
+3. **Complemento → ② Registrar los validados:** pega lo copiado. Registra solo esos (fecha y responsable) y muestra cuántos faltan.
+4. **Complemento → ① Generar diferencia:** propone solo lo que falta, sin repetir los ya propuestos. Repite 2–4 hasta 30.
+5. **Difusión → ✅ Generar lote** desde la Lista del día. Todo lo demás sigue igual.
+- *Tomar y registrar directo* hace todo en un paso, sin validar. *Reiniciar ronda* empieza de cero, sin tocar el Excel.
 
 **Validar antes de rellenar (Acción 1)**
 - **🔍 Validar** revisa los códigos en las hojas marcadas **sin escribir nada** y muestra un reporte: *"Se encontraron 15 de 17: 8 ya registrados, 7 nuevos y 2 no existen"*.

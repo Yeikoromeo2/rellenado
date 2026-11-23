@@ -223,12 +223,16 @@
         <label id="dropZone" class="flex items-center justify-center gap-2 w-full rounded-xl border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 py-2.5 text-[13px] font-semibold text-slate-600 cursor-pointer transition">
           📥 Cargar Excel de contactos<input id="xlsFile" type="file" accept=".xlsx,.xls" class="hidden">
         </label>
-        <button id="btnCodToggle" class="btn btn-primary w-full">🔎 Lote desde códigos del complemento</button>
+        <button id="btnCodToggle" class="btn btn-primary w-full">🔎 Validar lista del complemento</button>
         <div id="codPanel" class="hidden rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 space-y-2">
-          <textarea id="codTexto" rows="5" class="inp font-mono !text-[11.5px]" placeholder="Pega aquí la lista copiada del complemento (código, razón social y número) o solo los códigos"></textarea>
-          <button id="btnCodBuscar" class="btn btn-ghost w-full !py-1.5 !text-[12.5px]">🔎 Buscar códigos</button>
+          <textarea id="codTexto" rows="5" class="inp font-mono !text-[11.5px]" placeholder="Pega la lista completa que generó el complemento"></textarea>
+          <div class="flex items-center gap-2">
+            <button id="btnCodBuscar" class="btn btn-ghost flex-1 !py-1.5 !text-[12.5px]">🔎 Validar</button>
+            <label class="flex items-center gap-1 text-[11px] text-slate-600" title="Si un código no está en la base pero la lista trae su número, se agrega a la base"><input id="codCrear" type="checkbox" class="accent-indigo-600"> agregar nuevos con número</label>
+          </div>
           <div id="codPreview"></div>
         </div>
+        <div id="listaDia"></div>
         <button id="genLote" class="btn btn-ghost w-full !text-[12.5px]">🎲 Lote al azar de 30 (desde la base)</button>
         <div id="importResult" class="hidden text-[11.5px] rounded-lg p-2"></div>
       </div>
@@ -1105,16 +1109,19 @@ let codAnalisis = null;
 /** Revisa la lista pegada sin cambiar nada: qué códigos se pueden usar y por qué se descartan los demás */
 function analizarCodigos(texto) {
   const lbp = lastByPhone(), mapa = new Map(S.clientOrder.map(c => [normKey(c), c]));
-  const r = { usar: [], crear: [], sinTel: [], noBase: [], bloqueados: [], enCola: [], enviados: [], dup: 0 };
+  const r = { usar: [], crear: [], sinTel: [], noBase: [], bloqueados: [], enCola: [], enviados: [], enLista: [], dup: 0 };
+  const lista = new Set(listaDia().items.map(normKey));
+  const permitirCrear = !!(document.getElementById('codCrear') && document.getElementById('codCrear').checked);
   const vistos = new Set();
   for (const linea of String(texto || '').split(/\r?\n/)) {
     const partes = linea.split('\t').map(x => x.trim());
     const raw = partes[0]; if (!raw) continue;
     const k = normKey(raw); if (vistos.has(k)) { r.dup++; continue; } vistos.add(k);
+    if (lista.has(k)) { r.enLista.push(raw); continue; }
     const tel = normalizePhone(partes[2] || ''), razon = partes[1] || '';
     const cod = mapa.get(k);
     if (!cod) {
-      if (!validPhone(tel)) { r.noBase.push(raw); continue; }
+      if (!validPhone(tel) || !permitirCrear) { r.noBase.push(raw); continue; }
       if (S.optoutPhones[tel]) { r.bloqueados.push(`${raw} (No contactar)`); continue; }
       r.crear.push({ codigo: raw, razon, telefono: tel }); continue;
     }
@@ -1131,21 +1138,66 @@ function analizarCodigos(texto) {
 function renderCodPreview() {
   const r = codAnalisis, box = $('#codPreview');
   if (!r) { box.innerHTML = ''; return; }
-  const total = r.usar.length + r.crear.length;
-  const lineas = [
-    [r.usar.length, 'en la base', 'text-emerald-700'],
-    [r.crear.length, 'nuevos (se agregan a la base con su número)', 'text-emerald-700'],
-    [r.enviados.length, 'ya enviados antes', 'text-slate-500', r.enviados],
-    [r.enCola.length, 'ya están en un lote pendiente', 'text-slate-500', r.enCola],
-    [r.bloqueados.length, 'bloqueados', 'text-rose-700', r.bloqueados],
-    [r.sinTel.length, 'sin número válido', 'text-amber-700', r.sinTel],
-    [r.noBase.length, 'no están en la base ni traen número', 'text-amber-700', r.noBase],
+  const si = r.usar.map(u => u.cod).concat(r.crear.map(c => c.codigo));
+  const descartes = [
+    [r.noBase.length, 'no están en la base', r.noBase],
+    [r.enviados.length, 'ya enviados antes', r.enviados],
+    [r.enCola.length, 'en otro lote pendiente', r.enCola],
+    [r.bloqueados.length, 'bloqueados', r.bloqueados],
+    [r.sinTel.length, 'sin número válido', r.sinTel],
+    [r.enLista.length, 'ya están en la lista del día', r.enLista],
   ].filter(x => x[0]);
-  box.innerHTML = `<div class="rounded-lg bg-white border border-slate-200 p-2.5 space-y-1 text-[12px]">
-    ${lineas.map(([n, t, c, lst]) => `<div class="${c}"><b>${n}</b> ${t}${lst ? ` <span class="text-[10.5px] text-slate-400 font-mono">${esc(lst.slice(0, 8).join(', '))}${lst.length > 8 ? '…' : ''}</span>` : ''}</div>`).join('')}
-    ${r.dup ? `<div class="text-slate-400">${r.dup} repetidos en la lista (se ignoran)</div>` : ''}
+  box.innerHTML = `<div class="rounded-lg bg-white border border-slate-200 p-2.5 space-y-1.5 text-[12px]">
+    <div class="text-emerald-700 font-semibold">✓ Sí están: ${si.length}${r.crear.length ? ` <span class="font-normal text-slate-500">(${r.crear.length} nuevos con número)</span>` : ''}</div>
+    ${si.length ? `<div class="font-mono text-[10.5px] text-slate-600 max-h-20 overflow-y-auto scroll-thin break-all">${esc(si.join(', '))}</div>` : ''}
+    ${descartes.map(([n, t, lst]) => `<div class="text-amber-700">✗ ${n} ${t} <span class="font-mono text-[10.5px] text-slate-400">${esc(lst.slice(0, 6).join(', '))}${lst.length > 6 ? '…' : ''}</span></div>`).join('')}
+    ${r.dup ? `<div class="text-slate-400">${r.dup} repetidos en la lista</div>` : ''}
   </div>
-  <button id="btnCodGenerar" class="btn btn-green w-full mt-2" ${total ? '' : 'disabled'}>✅ Generar lote con ${total}</button>`;
+  <button id="btnCodCopiar" class="btn btn-green w-full mt-2" ${si.length ? '' : 'disabled'}>📋 Copiar ${si.length} y agregar a la lista del día</button>
+  <div class="text-[10.5px] text-slate-500 mt-1">Pega esos códigos en el complemento → ② Registrar.</div>`;
+}
+/* ---------- Lista del día: se acumula hasta la meta ---------- */
+function listaDia() {
+  if (!S.listaDia || S.listaDia.fecha !== todayKey()) S.listaDia = { fecha: todayKey(), items: [] };
+  return S.listaDia;
+}
+async function copiarYAgregar() {
+  const r = codAnalisis; if (!r) return;
+  // Los nuevos con número se agregan a la base
+  for (const n of r.crear) { if (!S.clients[n.codigo]) { S.clients[n.codigo] = { codigo: n.codigo, razon: n.razon, telefono: n.telefono, addedAt: Date.now(), extra: {} }; S.clientOrder.push(n.codigo); } }
+  for (const u of r.usar) { const c = S.clients[u.cod]; if (u.telNuevo) c.telefono = u.telNuevo; if (u.razon) c.razon = u.razon; }
+  const si = r.usar.map(u => u.cod).concat(r.crear.map(c => c.codigo));
+  const L = listaDia();
+  for (const c of si) if (!L.items.includes(c)) L.items.push(c);
+  await copyText(si.join('\n'));
+  save(true);
+  codAnalisis = null; $('#codTexto').value = ''; renderCodPreview(); renderListaDia(); renderStats();
+  toast(`${si.length} copiados. Pégalos en el complemento → ② Registrar.`, 'success', 4500);
+}
+function renderListaDia() {
+  const L = listaDia(), n = L.items.length, meta = LOTE_SIZE, box = $('#listaDia');
+  if (!n) { box.innerHTML = ''; return; }
+  const pct = Math.min(100, Math.round(n / meta * 100));
+  box.innerHTML = `<div class="rounded-xl border ${n >= meta ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50'} p-3 space-y-2">
+    <div class="flex items-center justify-between text-[12.5px]"><b>📝 Lista del día</b><span class="font-bold tabular-nums ${n >= meta ? 'text-emerald-700' : 'text-indigo-700'}">${n}/${meta}</span></div>
+    <div class="h-2 bg-white rounded-full overflow-hidden"><div class="h-full ${n >= meta ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
+    <div class="font-mono text-[10.5px] text-slate-500 max-h-16 overflow-y-auto scroll-thin break-all">${esc(L.items.join(', '))}</div>
+    <div class="text-[11.5px] ${n >= meta ? 'text-emerald-700 font-semibold' : 'text-slate-600'}">${n >= meta ? '✓ Meta completa' : `Faltan ${meta - n}: genera la diferencia en el complemento y valídala aquí.`}</div>
+    <div class="flex gap-2">
+      <button id="btnListaLote" class="btn btn-green flex-1 !py-1.5 !text-[12.5px]">✅ Generar lote con ${n}</button>
+      <button id="btnListaVaciar" class="btn btn-ghost !py-1.5 !text-[12px]" title="Vaciar la lista del día">🗑</button>
+    </div>
+  </div>`;
+}
+
+function crearLoteDesdeLista() {
+  const L = listaDia();
+  const codigos = L.items.filter(c => S.clients[c] && !S.gestion[c]?.enviado);
+  if (!codigos.length) { toast('La lista del día está vacía.', 'warn'); return; }
+  for (const l of S.lotes) if (l.retirados) l.retirados = l.retirados.filter(x => !codigos.includes(x.cod));
+  crearLote(codigos, 'complemento');
+  S.listaDia = { fecha: todayKey(), items: [] }; save(true); renderListaDia();
+  $('#codPanel').classList.add('hidden');
 }
 function crearLoteDesdeCodigos() {
   const r = codAnalisis; if (!r) return;
@@ -1882,7 +1934,7 @@ function renderDest() {
   $('#destHelp').textContent = app ? 'La primera vez marca “Permitir siempre” en el aviso del navegador.' : 'Permite ventanas emergentes para esta página.';
 }
 function renderAll() {
-  renderEjecutivos(); internalWarn();
+  renderEjecutivos(); internalWarn(); renderListaDia();
   renderDest(); renderStats(); renderLotes(); renderVarChips(); renderPreview(); renderAllRunner();
   if (S.ui.tab === 'crm') renderCRM(true);
 }
@@ -1922,7 +1974,17 @@ $('#btnCodBuscar').addEventListener('click', () => {
   codAnalisis = analizarCodigos($('#codTexto').value); renderCodPreview();
 });
 $('#codTexto').addEventListener('input', () => { if (codAnalisis) { codAnalisis = null; renderCodPreview(); } });
+$('#listaDia').addEventListener('click', e => {
+  if (e.target.closest('#btnListaVaciar')) { if (!confirm('¿Vaciar la lista del día? (no borra nada del Excel)')) return; S.listaDia = { fecha: todayKey(), items: [] }; save(); renderListaDia(); return; }
+  if (!e.target.closest('#btnListaLote')) return;
+  const n = listaDia().items.length;
+  if (n < LOTE_SIZE && !confirm(`La lista tiene ${n} de ${LOTE_SIZE}. ¿Generar el lote igualmente?`)) return;
+  const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);
+  if (pend && !confirm(`Ya tienes ${pend} contacto(s) pendientes en lotes de hoy. ¿Crear igualmente el lote?`)) return;
+  crearLoteDesdeLista();
+});
 $('#codPreview').addEventListener('click', e => {
+  if (e.target.closest('#btnCodCopiar')) { copiarYAgregar(); return; }
   if (!e.target.closest('#btnCodGenerar')) return;
   const n = codAnalisis.usar.length + codAnalisis.crear.length;
   const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);

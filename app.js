@@ -74,7 +74,7 @@ function colLetter(c) { let s = ''; c++; while (c > 0) { const m = (c - 1) % 26;
 
 /* ---------------- Estado persistente (solo preferencias) ---------------- */
 let P = (() => {
-  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a0', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true, cuotas: {}, soloConNumero: true };
+  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a0', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true, cuotas: {}, soloConNumero: true, ronda: null };
   try { const p = { ...base, ...JSON.parse(localStorage.getItem(LS_KEY) || '{}') }; if (!Array.isArray(p.sheets)) p.sheets = []; if (!p.cuotas || typeof p.cuotas !== 'object') p.cuotas = {}; return p; } catch (e) { return base; }
 })();
 function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) {} }
@@ -498,6 +498,7 @@ function exportReport() {
 /* =============================================================
    ACCIÓN 0 · TOMAR CONTACTOS LIBRES Y REGISTRARLOS
    ============================================================= */
+// La meta por hoja (15 + 15 por defecto)
 const cuotaDe = (hoja) => (P.cuotas[hoja] === undefined ? 15 : Math.max(0, Math.round(+P.cuotas[hoja] || 0)));
 function renderCuotas() {
   const hojas = selectedSheets();
@@ -565,17 +566,131 @@ async function runAction0() {
     setProgress(prog, 0.5, 'Registrando…');
     await applyWrites(writes, `Tomar ${elegidos.length} libres`, prog, 1);
     setProgress(prog, 1, 'Listo');
-    APP.tomados = elegidos;
-    renderTomados(faltantes.concat(errores));
+    APP.tomados = elegidos; APP.tomadosModo = 'directo';
+    ronda().registrados.push(...elegidos.map(({ key, codigo, hoja }) => ({ key, codigo, hoja }))); persist();
+    renderTomados(faltantes.concat(errores)); renderRonda();
     toast(`${elegidos.length} contactos tomados y registrados`, 'success');
   });
 }
+/* ---------- Ronda en dos filtros: proponer → validar en la difusión → registrar → diferencia ---------- */
+function ronda() {
+  const fecha = $('#date0').value || todayISO();
+  if (!P.ronda || P.ronda.fecha !== fecha) { P.ronda = { fecha, propuestos: [], registrados: [] }; persist(); }
+  return P.ronda;
+}
+/** Cuántos faltan por hoja para llegar a la meta */
+function faltanPorHoja() {
+  const R = ronda(), out = {};
+  for (const h of selectedSheets()) out[h] = Math.max(0, cuotaDe(h) - R.registrados.filter((x) => x.hoja === h).length);
+  return out;
+}
+function renderRonda() {
+  const R = ronda(), hojas = selectedSheets();
+  const meta = hojas.reduce((n, h) => n + cuotaDe(h), 0), hechos = R.registrados.length;
+  const falt = faltanPorHoja(), totalFalta = Object.values(falt).reduce((a, b) => a + b, 0);
+  const pct = meta ? Math.min(100, Math.round((hechos / meta) * 100)) : 0;
+  $('#ronda').innerHTML = `<div class="flex items-center justify-between text-[12.5px]"><b>Registrados hoy</b><span class="tabular-nums font-bold ${hechos >= meta && meta ? 'text-emerald-700' : 'text-indigo-700'}">${hechos}/${meta}</span></div>
+    <div class="h-2 bg-slate-200 rounded-full overflow-hidden my-1.5"><div class="h-full ${hechos >= meta && meta ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
+    <div class="text-[11px] text-slate-500">${hojas.map((h) => `${esc(h)}: ${cuotaDe(h) - falt[h]}/${cuotaDe(h)}`).join(' · ')}${R.propuestos.length ? ` · ${R.propuestos.length} propuestos` : ''}</div>`;
+  $('#btnPropose').innerHTML = hechos && totalFalta ? `① 🎲 Generar diferencia (faltan ${totalFalta})` : hechos >= meta && meta ? '✓ Meta completa' : '① 🎲 Generar lista (sin registrar)';
+  $('#btnPropose').disabled = !!(meta && totalFalta === 0);
+}
+
+/** Lee las hojas y devuelve una función para saber si un código está libre en TODAS */
+async function leerLibres() {
+  const kDate = normKey(P.dateCol), kResp = normKey(P.respCol);
+  const { idxs, errores } = await buildIndexes([kDate, kResp, ...NEW_ROW_RAZON, ...NEW_ROW_NUMERO]);
+  const sinCols = idxs.filter((idx) => !idx.h.cols.has(kDate) || !idx.h.cols.has(kResp)).map((x) => x.sheet);
+  if (sinCols.length) throw new Error(`Falta FECHA CONTACTO o RESPONSABLE en: ${sinCols.join(', ')}.`);
+  const libreEn = (idx, k) => idx.rows.get(k).every((row) => isEmpty(existingAt(idx, kDate, row)) && isEmpty(existingAt(idx, kResp, row)));
+  const libreGlobal = (k) => idxs.every((idx) => !idx.rows.has(k) || libreEn(idx, k));
+  return { idxs, errores, libreGlobal, kDate, kResp };
+}
+
+/** ① Propone contactos libres SIN escribir nada (solo lo que falta para la meta) */
+async function proponer() {
+  const hojas = selectedSheets();
+  if (!hojas.length) return toast('Marca al menos una hoja.', 'warn');
+  const R = ronda(), falt = faltanPorHoja();
+  if (!Object.values(falt).some(Boolean)) return toast('La meta del día ya está completa.', 'ok');
+  APP.tomados = null; renderTomados(); // nunca dejar visible una propuesta anterior
+  await busy('#btnPropose', async () => {
+    const prog = $('#prog0');
+    setProgress(prog, 0.1, 'Buscando libres…');
+    const { idxs, errores, libreGlobal } = await leerLibres();
+    const soloNum = $('#soloConNumero').checked;
+    const usados = new Set([...R.propuestos.map((x) => x.key), ...R.registrados.map((x) => x.key)]);
+    const elegidos = [], avisos = [...errores];
+    for (const idx of idxs) {
+      const n = falt[idx.sheet] || 0; if (!n) continue;
+      const kNum = findKey(idx, NEW_ROW_NUMERO);
+      const cand = mezclar([...idx.rows.keys()].filter((k) => !usados.has(k) && libreGlobal(k) &&
+        (!soloNum || !kNum || !isEmpty(existingAt(idx, kNum, idx.rows.get(k)[0])))));
+      const lote = cand.slice(0, n);
+      if (lote.length < n) avisos.push(`${idx.sheet}: solo ${lote.length} de ${n} libres disponibles`);
+      for (const k of lote) {
+        usados.add(k);
+        const row = idx.rows.get(k)[0], kR = findKey(idx, NEW_ROW_RAZON), kN = findKey(idx, NEW_ROW_NUMERO);
+        elegidos.push({ key: k, codigo: idx.raw.get(k) ?? k, hoja: idx.sheet, fila: row + 1,
+          razon: kR ? String(existingAt(idx, kR, row) ?? '').trim() : '', numero: kN ? String(existingAt(idx, kN, row) ?? '').trim() : '' });
+      }
+    }
+    setProgress(prog, 1, 'Lista lista (no se escribió nada)');
+    if (!elegidos.length) throw new Error('No hay más contactos libres que proponer.' + (avisos.length ? ' ' + avisos.join(' · ') : ''));
+    R.propuestos.push(...elegidos.map(({ key, codigo, hoja }) => ({ key, codigo, hoja }))); persist();
+    APP.tomados = elegidos; APP.tomadosModo = 'propuesta';
+    renderTomados(avisos); renderRonda();
+    toast(`${elegidos.length} propuestos. Cópialos y valídalos en la difusión.`, 'ok', 3500);
+  });
+}
+
+/** ② Registra solo los códigos validados que se pegan */
+async function registrarValidados() {
+  const lista = parseCodes($('#regCodes').value).list;
+  if (!lista.length) return toast('Pega los códigos validados.', 'warn');
+  const date = $('#date0').value;
+  if (!date) return toast('Elige la fecha.', 'warn');
+  if (!P.resp) return toast('Marca un responsable.', 'warn');
+  if (!confirm(`¿Registrar ${lista.length} código(s) con fecha ${fmtDate(date, P.dateFmt)} y responsable ${P.resp}?`)) return;
+  const R = ronda();
+  await busy('#btnRegistrar', async () => {
+    const prog = $('#prog0');
+    setProgress(prog, 0.1, 'Revisando…');
+    const { idxs, libreGlobal, kDate, kResp } = await leerLibres();
+    const serial = excelSerial(date), writes = [], ok = [], yaReg = [], noExiste = [];
+    for (const { key, raw } of lista) {
+      const donde = idxs.filter((idx) => idx.rows.has(key));
+      if (!donde.length) { noExiste.push(raw); continue; }
+      if (!libreGlobal(key)) { yaReg.push(raw); continue; }
+      const prop = R.propuestos.find((x) => x.key === key);
+      ok.push({ key, codigo: raw, hoja: prop ? prop.hoja : donde[0].sheet });
+      for (const idx of donde) for (const row of idx.rows.get(key)) for (const [k, value, fmt] of [[kDate, serial, P.dateFmt], [kResp, P.resp, null]]) {
+        const old = existingAt(idx, k, row);
+        if (isEmpty(old)) writes.push({ sheet: idx.sheet, row, col: absCol(idx, k), key: k, value, fmt, old });
+      }
+    }
+    if (writes.length) await applyWrites(writes, `Registrar ${ok.length} validados`, prog, 1);
+    setProgress(prog, 1, 'Listo');
+    R.registrados.push(...ok); persist();
+    $('#regCodes').value = '';
+    APP.tomados = null; renderTomados(); // la propuesta ya se procesó
+    const falta = Object.values(faltanPorHoja()).reduce((a, b) => a + b, 0);
+    $('#resultReg').innerHTML = `<div class="rounded-lg bg-emerald-50 p-2 text-[12px] space-y-0.5">
+      <div class="text-emerald-800 font-semibold">✅ ${ok.length} registrados</div>
+      ${yaReg.length ? `<div class="text-amber-700">${yaReg.length} ya estaban registrados: ${esc(yaReg.join(', '))}</div>` : ''}
+      ${noExiste.length ? `<div class="text-rose-700">${noExiste.length} no existen en las hojas: ${esc(noExiste.join(', '))}</div>` : ''}
+      <div class="${falta ? 'text-indigo-700' : 'text-emerald-700'} font-semibold">${falta ? `Faltan ${falta} → pulsa ① Generar diferencia` : '🎉 Meta del día completa'}</div></div>`;
+    renderRonda();
+    toast(`${ok.length} registrados${falta ? ` · faltan ${falta}` : ' · meta completa'}`, 'success', 3500);
+  });
+}
+
 function renderTomados(avisos = []) {
   const L = APP.tomados || [];
   if (!L.length) { $('#result0').innerHTML = ''; return; }
   const porHoja = {}; L.forEach((e) => { porHoja[e.hoja] = (porHoja[e.hoja] || 0) + 1; });
   $('#result0').innerHTML = `<div class="card p-3 space-y-2">
-    <div class="flex items-center justify-between"><span class="font-semibold text-[13px]">✅ ${L.length} contactos registrados</span>
+    <div class="flex items-center justify-between"><span class="font-semibold text-[13px]">${APP.tomadosModo === 'propuesta' ? `📝 ${L.length} propuestos (sin registrar)` : `✅ ${L.length} contactos registrados`}</span>
       <span class="text-[11px] text-slate-500">${Object.entries(porHoja).map(([h, n]) => `${esc(h)}: ${n}`).join(' · ')}</span></div>
     ${avisos.map((a) => `<div class="text-[11.5px] text-amber-700">⚠️ ${esc(a)}</div>`).join('')}
     <div class="grid grid-cols-2 gap-1.5">
@@ -591,7 +706,7 @@ function renderTomados(avisos = []) {
         <td class="py-1 px-2 text-right text-slate-500 text-[10.5px]">${esc(e.hoja)}</td></tr>`).join('')}
       </tbody></table>
     </div>
-    <div class="text-[10.5px] text-slate-500">En la herramienta de difusión: Envío → Lote del día → 🔎 Lote desde códigos → pegar.</div>
+    <div class="text-[10.5px] text-slate-500">${APP.tomadosModo === 'propuesta' ? 'Pega la lista en la difusión → 🔎 Validar. Luego pega aquí abajo (②) los que sí están.' : 'En la difusión: Envío → 🔎 Validar lista del complemento → pegar.'}</div>
   </div>`;
 }
 /** Lista separada por tabulaciones: código, razón social, número (se pega directo en la difusión o en Excel) */
@@ -846,7 +961,9 @@ async function busy(btnSel, fn) {
   try { await fn(); } catch (err) {
     console.error(err);
     toast(err.message || String(err), 'error', 4500);
-    const pg = document.querySelector(btnSel.replace('btnRun', 'prog').replace('btnCheck', 'prog')); if (pg) pg.classList.add('hidden');
+    // Oculta la barra de progreso que corresponde al botón (nunca el botón)
+    const PROG = { '#btnRun0': '#prog0', '#btnPropose': '#prog0', '#btnRegistrar': '#prog0', '#btnRun1': '#prog1', '#btnCheck1': '#prog1', '#btnRun2': '#prog2' };
+    const pg = PROG[btnSel] && document.querySelector(PROG[btnSel]); if (pg) pg.classList.add('hidden');
   } finally { APP.busy = false; btn.disabled = false; btn.innerHTML = html; }
 }
 function renderFooter() {
@@ -895,7 +1012,7 @@ async function loadSheetOptions() {
     P.sheets = sel; persist();
   } else if (!P.sheets.length) P.sheets = [P.sheet || DEFAULTS.sheet];
   renderSheetPicker();
-  renderCuotas();
+  renderCuotas(); renderRonda();
   renderMode();
 }
 function renderSheetPicker() {
@@ -974,7 +1091,11 @@ function bindEvents() {
   $('#btnRun1').addEventListener('click', () => runAction1(false));
   // Acción 0
   $('#btnRun0').addEventListener('click', runAction0);
-  $('#cuotas').addEventListener('change', (e) => { const i = e.target.closest('[data-cuota]'); if (!i) return; P.cuotas[i.dataset.cuota] = Math.max(0, Math.round(+i.value || 0)); persist(); renderCuotas(); });
+  $('#btnPropose').addEventListener('click', proponer);
+  $('#btnRegistrar').addEventListener('click', registrarValidados);
+  $('#btnRonda').addEventListener('click', () => { if (!confirm('¿Reiniciar la ronda de hoy? (no borra nada del Excel)')) return; P.ronda = null; persist(); APP.tomados = null; renderTomados(); $('#resultReg').innerHTML = ''; renderRonda(); });
+  $('#date0').addEventListener('change', renderRonda);
+  $('#cuotas').addEventListener('change', (e) => { const i = e.target.closest('[data-cuota]'); if (!i) return; P.cuotas[i.dataset.cuota] = Math.max(0, Math.round(+i.value || 0)); persist(); renderCuotas(); renderRonda(); });
   $('#respChips0').addEventListener('click', (e) => { const b = e.target.closest('[data-resp0]'); if (!b) return; P.resp = b.dataset.resp0; persist(); renderRespChips0(); renderRespChips(); });
   $('#soloConNumero').addEventListener('change', (e) => { P.soloConNumero = e.target.checked; persist(); });
   $('#result0').addEventListener('click', async (e) => {
