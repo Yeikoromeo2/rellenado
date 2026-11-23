@@ -717,9 +717,10 @@ async function loadSheetOptions() {
 }
 function renderSheetPicker() {
   const names = APP.sheetNames.length ? APP.sheetNames : P.sheets;
-  $('#cfgSheets').innerHTML = names.map((n) => `<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 cursor-pointer">
-    <input type="checkbox" class="w-4 h-4 accent-indigo-600" data-sheet="${esc(n)}" ${P.sheets.includes(n) ? 'checked' : ''}>
-    <span class="text-[12.5px] ${P.sheets.includes(n) ? 'font-semibold' : ''}">${esc(n)}</span></label>`).join('');
+  // Chips: marcadas en verde (se usan), las demás en gris. Un clic marca o desmarca.
+  $('#cfgSheets').innerHTML = names.map((n) => { const on = P.sheets.includes(n);
+    return `<label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[12px] font-semibold cursor-pointer select-none ${on ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">
+    <input type="checkbox" class="hidden" data-sheet="${esc(n)}" ${on ? 'checked' : ''}>${on ? '✓ ' : ''}${esc(n)}</label>`; }).join('');
 }
 function renderMode() {
   const b = $('#modeBadge'), hojas = selectedSheets();
@@ -767,6 +768,7 @@ function bindEvents() {
   $$('.tab').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
   $('#btnSettings').addEventListener('click', () => $('#settings').classList.toggle('hidden'));
   $('#btnReloadSheets').addEventListener('click', async () => { await loadSheetOptions(); refreshColumnMatch(); toast('Hojas actualizadas'); });
+  $('#btnReloadSheets2').addEventListener('click', async () => { await loadSheetOptions(); refreshColumnMatch(); toast('Hojas actualizadas'); });
   $('#cfgSheets').addEventListener('change', (e) => {
     const cb = e.target.closest('[data-sheet]'); if (!cb) return;
     const n = cb.dataset.sheet;

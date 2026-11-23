@@ -11,6 +11,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
+  .hidden { display: none !important; } /* siempre gana sobre .btn, sin importar el orden de carga de Tailwind */
   body { background: #F8FAFC; }
   .card { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; }
   .lbl { display: block; font-size: 11px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
@@ -38,7 +39,7 @@
   <header class="flex items-center gap-2">
     <img src="assets/icon-32.png" alt="" class="w-7 h-7 rounded-md">
     <div class="leading-tight min-w-0">
-      <div class="font-bold text-[14px]">Rellenado CRM</div>
+      <div class="font-bold text-[14px]">Rellenado CRM <span class="text-[10px] font-semibold text-slate-400">v1.2</span></div>
       <div id="modeBadge" class="text-[11px] text-slate-500 truncate">Detectando entorno…</div>
     </div>
     <button id="btnSettings" class="ml-auto w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-200/60" title="Configuración">
@@ -51,11 +52,6 @@
     <div class="flex items-center justify-between">
       <span class="font-semibold text-[13px]">Configuración</span>
       <button id="btnReloadSheets" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻ Recargar hojas</button>
-    </div>
-    <div>
-      <span class="lbl">Hojas a revisar y rellenar</span>
-      <div id="cfgSheets" class="rounded-lg border border-slate-200 max-h-44 overflow-y-auto scroll-thin"></div>
-      <p class="text-[11px] text-slate-500 mt-1">Se aplican las mismas reglas en todas las hojas marcadas.</p>
     </div>
     <div class="grid grid-cols-2 gap-2">
       <div>
@@ -96,6 +92,15 @@
       <div class="text-[11px] text-slate-500 mt-0.5">.xlsx · se procesa en la memoria del navegador</div>
     </label>
     <div id="masterInfo" class="text-[11.5px] text-slate-500 mt-2 hidden"></div>
+  </section>
+
+  <!-- Hojas donde trabaja (siempre visible) -->
+  <section class="card p-3">
+    <div class="flex items-center justify-between mb-1.5">
+      <span class="lbl !mb-0">Hojas donde busca y rellena</span>
+      <button id="btnReloadSheets2" class="text-[11.5px] text-indigo-600 font-semibold hover:underline">↻</button>
+    </div>
+    <div id="cfgSheets" class="flex flex-wrap gap-1.5"></div>
   </section>
 
   <!-- Pestañas -->
@@ -177,6 +182,6 @@
 
 <div id="toasts" class="fixed bottom-16 inset-x-0 z-50 flex flex-col items-center gap-2 pointer-events-none px-3"></div>
 
-<script src="app.js?v=1.2.0"></script>
+<script src="app.js?v=1.2.1"></script>
 </body>
 </html>
