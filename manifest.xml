@@ -9,11 +9,11 @@
            xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
            xsi:type="TaskPaneApp">
   <Id>bfae72c9-3557-443f-8747-1e8b96aa3a16</Id>
-  <Version>1.0.0.0</Version>
+  <Version>1.2.0.0</Version>
   <ProviderName>Yeikoromeo2</ProviderName>
   <DefaultLocale>es-ES</DefaultLocale>
   <DisplayName DefaultValue="Rellenado CRM"/>
-  <Description DefaultValue="Rellena FECHA CONTACTO, RESPONSABLE y la gestión del CRM en la hoja BD-BBPE a partir de códigos de cliente."/>
+  <Description DefaultValue="Rellena FECHA CONTACTO, RESPONSABLE y la gestión del CRM en las hojas BD-BBPE y Seguimiento semanal a partir de códigos de cliente."/>
   <IconUrl DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://yeikoromeo2.github.io/rellenado/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://github.com/Yeikoromeo2/rellenado"/>
