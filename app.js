@@ -26,9 +26,10 @@ const LS_KEY = 'rellenado_crm_v1';
 // Acción 2: ÚNICAS columnas que se rellenan desde el archivo CRM
 const A2_COLUMNS = ['ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMBRE DEL CONTACTO', 'CORREO', 'TELÉFONO'];
 // Columnas que JAMÁS se escriben en filas existentes
-const PROTECTED_KEYS = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente', 'razonsocial', 'numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular'];
+const PROTECTED_KEYS = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente', 'razonsocial', 'nombredelacuenta', 'nombrecuenta', 'nombredecuenta', 'cliente', 'numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular'];
 // Solo en FILAS NUEVAS (códigos agregados) se permite escribir además estas columnas
-const NEW_ROW_RAZON = ['razonsocial'];
+// Razón social: en el libro se llama "NOMBRE DE LA CUENTA" (columna Q); en la difusión, "CLIENTE"
+const NEW_ROW_RAZON = ['razonsocial', 'nombredelacuenta', 'nombrecuenta', 'nombredecuenta', 'cliente'];
 const NEW_ROW_NUMERO = ['numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular', 'celulares'];
 // Hoja de consulta de celulares (solo se LEE, nunca se escribe) y sus columnas
 const FUENTE_PATTERNS = [/nuevosregistros/, /registros2026/];

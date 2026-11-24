@@ -1056,8 +1056,9 @@ function importWorkbook(wb) {
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true, blankrows: false });
     for (let h = 0; h < Math.min(rows.length, 15); h++) {
       const keys = rows[h].map(normKey);
-      const iCod = pickCol(keys, [k => k === 'codigodecliente', k => k.startsWith('codigo') && k.includes('cliente'), k => k.startsWith('codigo') || k.startsWith('cod')]);
-      const iRaz = pickCol(keys, [k => k === 'razonsocial', k => k.includes('razon'), k => k.includes('cliente') && k !== keys[iCod]]);
+      const iCod = pickCol(keys, [k => k === 'codigodecliente', k => k === 'customerid' || k === 'iddetrax' || k === 'idtrax', k => k.startsWith('codigo') && k.includes('cliente'), k => k.startsWith('codigo') || k.startsWith('cod')]);
+      // Razón social: "CLIENTE" o "NOMBRE DE LA CUENTA" también valen
+      const iRaz = pickCol(keys, [k => k === 'razonsocial', k => k.includes('razon'), k => k === 'cliente', k => k.includes('nombre') && k.includes('cuenta'), k => k.includes('cliente') && k !== keys[iCod]]);
       const iTel = pickCol(keys, [k => k === 'numerodecontacto', k => k.includes('numero') && k.includes('contacto'), k => k.includes('telefono') || k.includes('celular') || k.includes('movil') || k.includes('whatsapp'), k => k.includes('numero') || k.includes('contacto')]);
       if (iCod >= 0 && iRaz >= 0 && iTel >= 0) { res = { rows, h, iCod, iRaz, iTel }; break; }
     }
@@ -1177,7 +1178,7 @@ function reporteALineas(wb) {
     for (let h = 0; h < Math.min(rows.length, 10); h++) {
       const keys = rows[h].map(normKey);
       const iC = keys.findIndex(k => k === 'codigodecliente' || k === 'customerid' || k === 'iddetrax' || k === 'idtrax' || (k.startsWith('codigo') && k.includes('cliente')));
-      const iR = keys.findIndex(k => k.includes('razon'));
+      const iR = [k => k.includes('razon'), k => k === 'cliente', k => k.includes('nombre') && k.includes('cuenta')].map(f => keys.findIndex(f)).find(i => i >= 0) ?? -1;
       const iT = keys.findIndex(k => k.includes('celular') || k === 'numerodecontacto' || k.includes('telefono'));
       if (iC < 0) continue;
       const out = [];
