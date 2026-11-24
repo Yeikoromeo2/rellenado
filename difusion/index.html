@@ -238,7 +238,7 @@
           <div id="codPreview"></div>
         </div>
         <div id="listaDia"></div>
-        <button id="genLote" class="btn btn-ghost w-full !text-[12.5px]">🎲 Lote al azar de 30 (desde la base)</button>
+        <div class="flex gap-2"><button id="genLote" class="btn btn-ghost flex-1 !text-[12.5px]">🎲 Agregar al azar desde la base</button><input id="genN" type="number" min="1" max="500" value="60" class="inp !w-20 text-center" title="Cuántos contactos agregar"></div>
         <div id="importResult" class="hidden text-[11.5px] rounded-lg p-2"></div>
       </div>
 
@@ -448,7 +448,7 @@
    CONSTANTES
    ========================================================= */
 const LS_KEY = 'difusion_crm_v1';
-const LOTE_SIZE = 30;
+
 const WA_WINDOW = 'whatsapp_crm';
 const ESTADOS = [
   { v: 'Cliente potencial – carterizar', c: '#7C3AED' },
@@ -517,7 +517,7 @@ function defaultState() {
     optoutPhones: {},   // telefono -> {at, motivo}
     run: { dirty: false },
     settings: { destino: 'app', ejecutivo: DEFAULT_EJECUTIVOS[0].nombre, miEmpresa: '', ejecutivos: DEFAULT_EJECUTIVOS.map(e => ({ ...e })) },
-    ui: { tab: 'campana', sendLoteId: null, view: 'today', sentFilter: 'all', tpl: 0 },
+    ui: { tab: 'campana', sendLoteId: null, view: 'cola', sentFilter: 'all', tpl: 0 },
   };
 }
 function migrate(d) {
@@ -1069,7 +1069,7 @@ function renderStats() {
   $('#stTotal').textContent = s.total.toLocaleString('es-PE');
   $('#stAssigned').textContent = s.assigned.toLocaleString('es-PE');
   $('#stAvail').textContent = s.avail.toLocaleString('es-PE');
-  $('#stAvailSub').textContent = [s.noPhone ? `${s.noPhone} sin número` : '', s.excl ? `${s.excl} excluidos` : '', !s.noPhone && !s.excl ? (s.avail ? `≈ ${Math.ceil(s.avail / LOTE_SIZE)} lotes restantes` : 'sin pendientes') : ''].filter(Boolean).join(' · ');
+  $('#stAvailSub').textContent = [s.noPhone ? `${s.noPhone} sin número` : '', s.excl ? `${s.excl} excluidos` : '', !s.noPhone && !s.excl ? (s.avail ? 'disponibles para agregar' : 'sin pendientes') : ''].filter(Boolean).join(' · ');
   const withConsent = S.clientOrder.filter(c => S.clients[c]?.consent === true).length;
   $('#consentInfo').textContent = `(${withConsent} de ${S.clientOrder.length} lo tienen)`;
   $('#optCount').textContent = `${new Set([...Object.keys(S.optout).map(phoneOf), ...Object.keys(S.optoutPhones)].filter(Boolean)).size} números en No contactar`;
@@ -1186,10 +1186,10 @@ function quitarDelLote(codes, motivo = 'Ya registrado') {
   for (const cod of quitados) { const g = S.gestion[cod]; g.estadoEnvio = 'Ya registrado'; g.retirado = motivo; g.sched = null; g.eff = null; g.gestionAt = Date.now(); }
   return { quitados: quitados.length, enviados, fuera };
 }
-/** Completa el lote actual hasta LOTE_SIZE con contactos nuevos al azar */
+/** Completa la cola hasta su tamaño original con contactos nuevos al azar */
 function completarLote() {
   const l = getSendLote(); if (!l) return 0;
-  const falta = LOTE_SIZE - l.codigos.length; if (falta <= 0) return 0;
+  const falta = (l.objetivo || l.codigos.length) - l.codigos.length; if (falta <= 0) return 0;
   const nuevos = poolDisponible().slice(0, falta);
   for (const c of nuevos) { S.gestion[c] = nuevaGestion(l.id); l.codigos.push(c); }
   if (nuevos.length) planLote({ from: R.running ? Date.now() : null }); // genera texto y hora solo a los nuevos
@@ -1197,7 +1197,7 @@ function completarLote() {
 }
 function renderQuitarCompletar() {
   const l = getSendLote(), btn = $('#btnCompletar');
-  const falta = l ? LOTE_SIZE - l.codigos.length : 0;
+  const falta = l ? (l.objetivo || l.codigos.length) - l.codigos.length : 0;
   $('#loteCuenta').textContent = l ? `${l.codigos.length} contactos` + ((l.retirados || []).length ? ` · ${l.retirados.length} quitados` : '') : '';
   btn.classList.toggle('hidden', !l || falta <= 0);
   btn.textContent = `➕ Completar ${falta}`;
@@ -1276,7 +1276,7 @@ function renderCodPreview() {
 }
 /* ---------- Lista del día: se acumula hasta la meta ---------- */
 function listaDia() {
-  if (!S.listaDia || S.listaDia.fecha !== todayKey()) S.listaDia = { fecha: todayKey(), items: [] };
+  if (!S.listaDia || !Array.isArray(S.listaDia.items)) S.listaDia = { fecha: todayKey(), items: [] };
   return S.listaDia;
 }
 async function copiarYAgregar() {
@@ -1302,7 +1302,7 @@ function renderListaDia() {
     <div class="font-mono text-[10.5px] text-slate-500 max-h-16 overflow-y-auto scroll-thin break-all">${esc(L.items.join(', '))}</div>
     <div class="text-[11.5px] text-slate-600">Se programan todos (sin tope). ${n > avisoN() ? `<b class="text-amber-700">Son más de ${avisoN()}: te avisaré al pasarlos.</b>` : ''}</div>
     <div class="flex gap-2">
-      <button id="btnListaLote" class="btn btn-green flex-1 !py-1.5 !text-[12.5px]">✅ Generar lote con ${n}</button>
+      <button id="btnListaLote" class="btn btn-green flex-1 !py-1.5 !text-[12.5px]">✅ Agregar ${n} a la cola</button>
       <button id="btnListaVaciar" class="btn btn-ghost !py-1.5 !text-[12px]" title="Vaciar la lista del día">🗑</button>
     </div>
   </div>`;
@@ -1313,7 +1313,7 @@ function crearLoteDesdeLista() {
   const codigos = L.items.filter(c => S.clients[c] && !S.gestion[c]?.enviado);
   if (!codigos.length) { toast('La lista del día está vacía.', 'warn'); return; }
   for (const l of S.lotes) if (l.retirados) l.retirados = l.retirados.filter(x => !codigos.includes(x.cod));
-  crearLote(codigos, 'complemento');
+  agregarACola(codigos, 'complemento');
   S.listaDia = { fecha: todayKey(), items: [] }; save(true); renderListaDia();
   $('#codPanel').classList.add('hidden');
 }
@@ -1333,17 +1333,39 @@ function crearLoteDesdeCodigos() {
   if (!codigos.length) return;
   // Si alguno había sido quitado de otro lote, deja de figurar como quitado allí
   for (const l of S.lotes) if (l.retirados) l.retirados = l.retirados.filter(x => !codigos.includes(x.cod));
-  crearLote(codigos, 'complemento');
+  agregarACola(codigos, 'complemento');
   codAnalisis = null; $('#codTexto').value = ''; renderCodPreview(); $('#codPanel').classList.add('hidden');
+}
+/** Agrega a la cola actual: los pendientes se quedan y los nuevos se suman al final.
+ *  Si hay pendientes en lotes anteriores, se juntan todos en la misma cola. */
+function agregarACola(codigos, origen) {
+  const conPend = S.lotes.filter(l => lotePending(l).length);
+  if (!conPend.length) return crearLote(codigos, origen);
+  const l = conPend.includes(getSendLote()) ? getSendLote() : conPend[conPend.length - 1];
+  for (const o of conPend) {
+    if (o === l) continue;
+    const mover = lotePending(o);
+    o.codigos = o.codigos.filter(c => !mover.includes(c));
+    for (const c of mover) { l.codigos.push(c); S.gestion[c].loteId = l.id; }
+  }
+  const nuevos = codigos.filter(c => !l.codigos.includes(c) && !S.gestion[c]?.enviado);
+  for (const c of nuevos) { S.gestion[c] = nuevaGestion(l.id); l.codigos.push(c); }
+  l.objetivo = l.codigos.length;
+  S.ui.sendLoteId = l.id; S.ui.view = 'cola';
+  planLote({ from: R.running ? Date.now() : null });
+  save(true); renderAll();
+  const pend = lotePending(l).length;
+  toast(`➕ ${nuevos.length} agregados a la cola · ${pend} pendientes en total`, 'success', 4000);
+  return l;
 }
 /** Crea un lote con los códigos dados, con texto único y hora programada */
 function crearLote(codigos, origen) {
   const today = todayKey();
-  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos, ejecutivo: S.settings.ejecutivo, origen };
+  const lote = { id: 'L' + Date.now().toString(36), num: S.lotes.length ? Math.max(...S.lotes.map(l => l.num)) + 1 : 1, fecha: today, createdAt: Date.now(), codigos, objetivo: codigos.length, ejecutivo: S.settings.ejecutivo, origen };
   S.lotes.push(lote);
   for (const c of codigos) S.gestion[c] = nuevaGestion(lote.id);
   S.ui.sendLoteId = lote.id;
-  S.ui.view = 'lote:' + lote.id;
+  S.ui.view = 'cola';
   stopRunner();
   planLote({ regenTexts: true, regenTimes: true });
   S.run.dirty = false;
@@ -1354,11 +1376,9 @@ function crearLote(codigos, origen) {
 function generateLote() {
   const pool = poolDisponible();
   if (!pool.length) { toast(S.clientOrder.length ? 'No quedan contactos disponibles por asignar.' : 'Primero carga tu base de clientes en Excel.', 'warn', 3000); return; }
-  const today = todayKey();
-  const pendingToday = S.lotes.filter(l => l.fecha === today).reduce((n, l) => n + lotePending(l).length, 0);
-  if (pendingToday > 0 && !confirm(`Ya tienes ${pendingToday} contacto(s) pendientes en lotes de hoy.\n¿Generar igualmente un nuevo lote?`)) return;
-  const codigos = shuffle(pool.slice()).slice(0, LOTE_SIZE);
-  crearLote(codigos, 'azar');
+  const n = Math.max(1, Math.round(+($('#genN')?.value) || 60));
+  const codigos = shuffle(pool.slice()).slice(0, n);
+  agregarACola(codigos, 'azar');
 }
 function getSendLote() {
   let l = loteById(S.ui.sendLoteId);
@@ -1844,6 +1864,8 @@ function regenOne(cod) {
    ========================================================= */
 let crmLimit = 60;
 function viewCodigos(view = S.ui.view) {
+  if (view === 'cola') { const l = getSendLote(); return l ? l.codigos.slice() : []; }
+  if (view.startsWith('sent:')) { const d = view.slice(5); return Object.keys(S.gestion).filter(c => S.gestion[c].enviado && S.gestion[c].fechaEnvio && todayKey(S.gestion[c].fechaEnvio) === d).sort((a, b) => S.gestion[a].fechaEnvio - S.gestion[b].fechaEnvio); }
   if (view === 'all') return S.lotes.flatMap(l => l.codigos.concat((l.retirados || []).map(r => r.cod)));
   if (view === 'today') return S.lotes.filter(l => l.fecha === todayKey()).flatMap(l => l.codigos);
   if (view.startsWith('lote:')) return loteById(view.slice(5))?.codigos || [];
@@ -1864,12 +1886,16 @@ function filteredCodigos() {
 function renderViewSelect() {
   const sel = $('#viewSel'), today = todayKey();
   const dates = [...new Set(S.lotes.map(l => l.fecha))].sort().reverse();
-  let html = `<option value="today">📅 Lote de hoy (${viewCodigos('today').length})</option>`;
+  const l0 = getSendLote();
+  let html = `<option value="cola">📋 Cola actual (${l0 ? lotePending(l0).length : 0} pendientes · ${l0 ? loteSent(l0) : 0} enviados)</option>`;
+  const sentDays = [...new Set(Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio).map(g => todayKey(g.fechaEnvio)))].sort().reverse();
+  if (sentDays.length) html += `<optgroup label="✅ Enviados por fecha (para el complemento)">` + sentDays.map(d => `<option value="sent:${d}">Enviados el ${fmtDateKey(d)}${d === today ? ' · hoy' : ''} (${viewCodigos('sent:' + d).length})</option>`).join('') + `</optgroup>`;
+  html += `<option value="today">📅 Lotes creados hoy (${viewCodigos('today').length})</option>`;
   html += `<optgroup label="Lotes">` + S.lotes.slice().reverse().map(l => `<option value="lote:${l.id}">${esc(loteLabel(l))}${l.fecha === today ? ' · hoy' : ''} (${loteSent(l)}/${l.codigos.length} enviados)</option>`).join('') + `</optgroup>`;
   if (dates.length > 1) html += `<optgroup label="Por fecha">` + dates.map(d => `<option value="date:${d}">Todos del ${fmtDateKey(d)}</option>`).join('') + `</optgroup>`;
   html += `<option value="all">🗂️ Historial completo (${Object.keys(S.gestion).length})</option>`;
   sel.innerHTML = html;
-  if (![...sel.options].some(o => o.value === S.ui.view)) S.ui.view = 'today';
+  if (![...sel.options].some(o => o.value === S.ui.view)) S.ui.view = 'cola';
   sel.value = S.ui.view;
   $$('#sentFilter button').forEach(b => { const on = b.dataset.f === S.ui.sentFilter; b.className = (b.dataset.f !== 'all' ? 'border-l border-slate-200 ' : '') + 'px-3 py-2 ' + (on ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'); });
 }
@@ -1981,6 +2007,8 @@ function exportExcel(scope) {
   let name;
   if (scope === 'all') name = `CRM_Historial_${todayKey()}.xlsx`;
   else if (S.ui.view.startsWith('lote:')) { const l = loteById(S.ui.view.slice(5)); name = `CRM_Lote${l.num}_${l.fecha}.xlsx`; }
+  else if (S.ui.view.startsWith('sent:')) name = `CRM_Enviados_${S.ui.view.slice(5)}.xlsx`;
+  else if (S.ui.view === 'cola') name = `CRM_Cola_${todayKey()}.xlsx`;
   else name = `CRM_${S.ui.view.replace(':', '_')}_${todayKey()}.xlsx`;
   // Código como texto: así "00123" o "1002" se leen igual en el complemento
   const rows = exportRows(cods).map(r => ({ ...r, 'Código de Cliente': String(r['Código de Cliente'] ?? '') }));
@@ -2122,16 +2150,11 @@ $('#listaDia').addEventListener('click', e => {
   if (e.target.closest('#btnListaVaciar')) { if (!confirm('¿Vaciar la lista del día? (no borra nada del Excel)')) return; S.listaDia = { fecha: todayKey(), items: [] }; save(); renderListaDia(); return; }
   if (!e.target.closest('#btnListaLote')) return;
   const n = listaDia().items.length;
-  const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);
-  if (pend && !confirm(`Ya tienes ${pend} contacto(s) pendientes en lotes de hoy. ¿Crear igualmente el lote?`)) return;
   crearLoteDesdeLista();
 });
 $('#codPreview').addEventListener('click', e => {
   if (e.target.closest('#btnCodCopiar')) { copiarYAgregar(); return; }
   if (!e.target.closest('#btnCodGenerar')) return;
-  const n = codAnalisis.usar.length + codAnalisis.crear.length;
-  const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);
-  if (pend && !confirm(`Ya tienes ${pend} contacto(s) pendientes en lotes de hoy. ¿Crear igualmente el lote con ${n}?`)) return;
   crearLoteDesdeCodigos();
 });
 $('#ejecChips').addEventListener('click', e => {
