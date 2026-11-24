@@ -361,8 +361,8 @@
     <div class="card p-5">
       <div class="card-h"><span class="ic">⚡</span>Perfil rápido</div>
       <div id="presets" class="flex flex-wrap gap-2">
-        <button class="preset" data-preset="prudente"><b>🐢 Prudente</b><small>20 en 24 h · 12–60 min</small></button>
-        <button class="preset" data-preset="recomendado"><b>⚖️ Recomendado</b><small>30 en 24 h · 7–45 min</small></button>
+        <button class="preset" data-preset="prudente"><b>🐢 Prudente</b><small>Aviso a 20 · 12–60 min</small></button>
+        <button class="preset" data-preset="recomendado"><b>⚖️ Recomendado</b><small>Aviso a 30 · 7–45 min</small></button>
         <button class="preset" data-preset="nuevo"><b>🌱 Número nuevo</b><small>Empieza en 10 y sube</small></button>
       </div>
     </div>
@@ -370,7 +370,7 @@
     <div class="grid lg:grid-cols-3 gap-4">
       <div class="card p-5">
         <div class="card-h"><span class="ic">⏱️</span>Ritmo</div>
-        <div class="set-row"><span>Máx. en 24 h</span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="200" data-pol="max24h"><button data-stepper="+">+</button></div></div>
+        <div class="set-row"><span>Avisar al pasar <span class="hint">en 24 h</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="200" data-pol="max24h"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Intervalo mín. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="120" data-cad="gapMinM"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Intervalo máx. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="240" data-cad="gapMaxM"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Repartir en la jornada</span><label class="sw"><input type="checkbox" data-cad="repartir"><span></span></label></div>
@@ -466,6 +466,9 @@ const DEFAULT_TEMPLATES = [
 ];
 const OLD_TPLS = ['{Te escribo|Le escribo|Me comunico} de parte de {nuestro equipo comercial|tu asesor comercial} para {contarte|comentarte|compartirte} {las promociones vigentes|las ofertas de esta semana|nuestras novedades} {para|pensadas para} {{empresa}}.', '{Quería|Queríamos} {saber cómo van|consultarte cómo están} {las compras|los pedidos} de {{empresa}} {este mes|estas semanas} y {si podemos apoyarte|si necesitas algo de nuestra parte} con {una cotización|precios especiales|stock disponible}.'];
 const OLD_PREG = '¿{Te interesa|Te gustaría} que te {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} te {acomoda|viene bien} que lo {revisemos|conversemos}?';
+// Cualquier línea de "respondan BAJA" / "no recibir más mensajes" se elimina siempre
+const RE_BAJA = /\bBAJA\b|no (?:deseas?|desean|quieres?|quieren|prefieres?|prefieren)?\s*recibir m[aá]s mensajes|no deseas? m[aá]s mensajes|no desean m[aá]s mensajes/i;
+function sinBaja(t) { return String(t || '').split('\n').filter(l => !RE_BAJA.test(l)).join('\n'); }
 const OLD_SALIDA = 'Si prefieres no recibir más mensajes, responde BAJA.\nSi no deseas más mensajes, solo responde BAJA.';
 const OLD_TPL3 = '{Tenemos|Contamos con} {precios especiales|condiciones preferentes|nuevas promociones} {para clientes como|pensadas para} {{empresa}}{ (cód. {{codigo}})|} y {me gustaría|quisiera} {enviártelas|compartírtelas} {sin compromiso|cuando te acomode}.';
 const OLD_SALUDO = '{Hola|Buen día|Buenos días|Qué tal} {{nombre}} 👋\n{Hola|Saludos}, {{nombre}}\n¡{Hola|Buen día}{ {{nombre}}|}!';
@@ -529,8 +532,10 @@ function migrate(d) {
   s.templates.forEach(t => { if (t.text === OLD_TPL3) t.text = DEFAULT_TEMPLATES[2]; const i = OLD_TPLS.indexOf(t.text); if (i >= 0) t.text = DEFAULT_TEMPLATES[i]; });
   // Sin línea de "respondan BAJA" y sin "buen día" en la despedida (el saludo ya lo usa al inicio)
   delete s.blocks.salida; s.policy.salida = false;
+  (s.templates || []).forEach(t => { if (t && RE_BAJA.test(t.text || '')) t.text = sinBaja(t.text).trim(); });
+  for (const b of Object.values(s.blocks || {})) if (b && RE_BAJA.test(b.items || '')) b.items = sinBaja(b.items).trim();
   if (s.blocks.despedida && /buen\s*d[ií]a/i.test(s.blocks.despedida.items || '')) s.blocks.despedida.items = DEFAULT_BLOCKS.despedida.items;
-  for (const g of Object.values(s.gestion || {})) if (g && !g.enviado && g.gen && /\bBAJA\b|buen\s*d[ií]a!?\s*$/i.test(g.gen.text || '')) { g.gen = null; g.plan = null; }
+  for (const g of Object.values(s.gestion || {})) if (g && !g.enviado && g.gen && (RE_BAJA.test(g.gen.text || '') || /buen\s*d[ií]a!?\s*$/i.test(g.gen.text || ''))) { g.gen = null; g.plan = null; }
   if (s.blocks.pregunta && s.blocks.pregunta.items === OLD_PREG) s.blocks.pregunta.items = DEFAULT_BLOCKS.pregunta.items;
   if (s.blocks.saludo && s.blocks.saludo.items === OLD_SALUDO) s.blocks.saludo = JSON.parse(JSON.stringify(DEFAULT_BLOCKS.saludo));
   if (s.blocks.pregunta && +s.blocks.pregunta.prob === 85 && !s.blocks.presentacion) s.blocks.pregunta.prob = 40;
@@ -547,8 +552,14 @@ function migrate(d) {
   return s;
 }
 function loadState() {
-  try { const raw = localStorage.getItem(LS_KEY); return raw ? migrate(JSON.parse(raw)) : defaultState(); }
-  catch (e) { console.error(e); return defaultState(); }
+  let raw = null;
+  try { raw = localStorage.getItem(LS_KEY); return raw ? migrate(JSON.parse(raw)) : defaultState(); }
+  catch (e) {
+    console.error(e);
+    // Nunca perder datos: se guarda una copia antes de empezar en blanco
+    try { if (raw) localStorage.setItem(LS_KEY + '_respaldo_' + Date.now(), raw); } catch (e2) {}
+    return defaultState();
+  }
 }
 let S = loadState();
 let saveTimer = null;
@@ -706,6 +717,7 @@ function renderSpintax(tpl, c, g, fb) {
   return { text: s, path: path.join('.') };
 }
 function tidy(t) {
+  t = sinBaja(t);
   return t.split('\n').map(l => l.replace(/[ \t]+/g, ' ').replace(/\s+(de|del|para|con)\s*([.,;:!?])/gi, '$2').replace(/\(\s*\)/g, '').replace(/\s+([,.;:!?)])/g, '$1').replace(/([¡¿(])\s+/g, '$1').replace(/,\s*,+/g, ',').replace(/^\s*[,;:]\s*/, '').replace(/¡\s*!/g, '').trim())
     .join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -792,13 +804,11 @@ function spreadGap(idealMs, prevGap) {
 }
 
 /* ---------- Cupo de 24 horas móviles ---------- */
+// Ya no hay tope: el lote se programa completo (60, 80…). max24h solo sirve para avisar.
+const SIN_LIMITE = 1e6;
+const avisoN = () => Math.max(1, Math.round(+S.policy.max24h || 30));
 function cap24(now = Date.now()) {
-  const max = Math.max(1, Math.round(+S.policy.max24h || 30));
-  if (!S.policy.warmup || !S.policy.warmupStart) return max;
-  const start = new Date(S.policy.warmupStart + 'T00:00').getTime();
-  if (isNaN(start)) return max;
-  const semanas = Math.max(0, Math.floor((now - start) / (7 * H24)));
-  return Math.min(max, 10 + 5 * semanas); // 10 → 15 → 20 → 25 → 30 por semana
+  return SIN_LIMITE;
 }
 /** Horas reales de todos los envíos registrados (de todos los lotes) */
 function sentTimes() { return Object.values(S.gestion).filter(g => g.enviado && g.fechaEnvio).map(g => g.fechaEnvio).sort((a, b) => a - b); }
@@ -813,7 +823,7 @@ function quotaInfo(now = Date.now()) {
   const times = sentTimes(), cap = cap24(now);
   const win = times.filter(x => x > now - H24 && x <= now);
   const used = win.length;
-  return { cap, used, free: Math.max(0, cap - used), first: win[0] || null, release: used >= cap ? quotaReleaseAt(now, times, cap) : (win[0] ? win[0] + H24 : null) };
+  return { cap, aviso: avisoN(), used, free: Math.max(0, cap - used), first: win[0] || null, release: used >= cap ? quotaReleaseAt(now, times, cap) : (win[0] ? win[0] + H24 : null) };
 }
 function inLunch(t) { return !!S.cad.lunch && t >= dayAt(t, S.cad.lunchStart || '13:00') && t < dayAt(t, S.cad.lunchEnd || '14:00'); }
 /** Mueve t al siguiente momento permitido: pausa de emergencia, jornada, almuerzo y cupo de 24 h */
@@ -1166,7 +1176,7 @@ function completarLote() {
 function renderQuitarCompletar() {
   const l = getSendLote(), btn = $('#btnCompletar');
   const falta = l ? LOTE_SIZE - l.codigos.length : 0;
-  $('#loteCuenta').textContent = l ? `${l.codigos.length}/${LOTE_SIZE}` + ((l.retirados || []).length ? ` · ${l.retirados.length} quitados` : '') : '';
+  $('#loteCuenta').textContent = l ? `${l.codigos.length} contactos` + ((l.retirados || []).length ? ` · ${l.retirados.length} quitados` : '') : '';
   btn.classList.toggle('hidden', !l || falta <= 0);
   btn.textContent = `➕ Completar ${falta}`;
 }
@@ -1261,14 +1271,14 @@ async function copiarYAgregar() {
   toast(`${si.length} copiados. Pégalos en el complemento → ② Registrar.`, 'success', 4500);
 }
 function renderListaDia() {
-  const L = listaDia(), n = L.items.length, meta = LOTE_SIZE, box = $('#listaDia');
+  const L = listaDia(), n = L.items.length, meta = n, box = $('#listaDia');
   if (!n) { box.innerHTML = ''; return; }
   const pct = Math.min(100, Math.round(n / meta * 100));
   box.innerHTML = `<div class="rounded-xl border ${n >= meta ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50'} p-3 space-y-2">
-    <div class="flex items-center justify-between text-[12.5px]"><b>📝 Lista del día</b><span class="font-bold tabular-nums ${n >= meta ? 'text-emerald-700' : 'text-indigo-700'}">${n}/${meta}</span></div>
+    <div class="flex items-center justify-between text-[12.5px]"><b>📝 Lista del día</b><span class="font-bold tabular-nums text-emerald-700">${n} contacto${n === 1 ? '' : 's'}</span></div>
     <div class="h-2 bg-white rounded-full overflow-hidden"><div class="h-full ${n >= meta ? 'bg-emerald-500' : 'bg-indigo-500'}" style="width:${pct}%"></div></div>
     <div class="font-mono text-[10.5px] text-slate-500 max-h-16 overflow-y-auto scroll-thin break-all">${esc(L.items.join(', '))}</div>
-    <div class="text-[11.5px] ${n >= meta ? 'text-emerald-700 font-semibold' : 'text-slate-600'}">${n >= meta ? '✓ Meta completa' : `Faltan ${meta - n}: genera la diferencia en el complemento y valídala aquí.`}</div>
+    <div class="text-[11.5px] text-slate-600">Se programan todos (sin tope). ${n > avisoN() ? `<b class="text-amber-700">Son más de ${avisoN()}: te avisaré al pasarlos.</b>` : ''}</div>
     <div class="flex gap-2">
       <button id="btnListaLote" class="btn btn-green flex-1 !py-1.5 !text-[12.5px]">✅ Generar lote con ${n}</button>
       <button id="btnListaVaciar" class="btn btn-ghost !py-1.5 !text-[12px]" title="Vaciar la lista del día">🗑</button>
@@ -1560,6 +1570,9 @@ function markSent(codigo) {
   save(true);
   renderStats(); renderLotes(); updateRowSent(codigo);
   toast(`Chat abierto: ${codigo} · mensaje copiado`, 'success');
+  const q = quotaInfo();
+  if (q.used === q.aviso) setTimeout(() => toast(`🔔 Llegaste a ${q.aviso} envíos en 24 h.`, 'warn', 6000), 400);
+  else if (q.used > q.aviso) setTimeout(() => toast(`⚠️ Llevas ${q.used} envíos en 24 h (pasaste los ${q.aviso}).`, 'warn', 6000), 400);
 }
 let titleFlash = null;
 function showBlocked(n) {
@@ -1636,9 +1649,10 @@ function renderKpis() {
   $('#kPend').textContent = pend;
   const q = quotaInfo();
   renderDonut(q);
-  $('#kCupoSub').innerHTML = q.used >= q.cap
-    ? `<b class="text-rose-600">Cupo lleno</b> · se libera ${fmtWhen(q.release)}`
-    : `<b class="text-emerald-700">${q.free} libres</b>` + (q.first ? ` · el siguiente cupo vuelve ${fmtWhen(q.first + H24)}` : '');
+  $('#kCupoSub').innerHTML = q.used > q.aviso
+    ? `<b class="text-rose-600">⚠ Pasaste los ${q.aviso}: llevas ${q.used} en 24 h</b>`
+    : q.used === q.aviso ? `<b class="text-amber-600">Llegaste a ${q.aviso} en 24 h</b>`
+    : `<b class="text-emerald-700">${q.aviso - q.used} para el aviso de ${q.aviso}</b> · sin límite`;
   $('#warmInfo').textContent = S.policy.warmup ? (S.policy.warmupStart ? `Hoy: ${cap24()} en 24 h · sube 5 por semana` : 'Indica desde cuándo usas el número') : '';
   const pausa = S.run.pausaHasta && Date.now() < S.run.pausaHasta;
   $('#pausaInfo').textContent = pausa ? `hasta ${fmtWhen(S.run.pausaHasta)}` : '';
@@ -1670,13 +1684,13 @@ function renderKpis() {
 }
 /** Anillo del cupo de 24 h */
 function renderDonut(q) {
-  const r = 48, c = 2 * Math.PI * r, pct = Math.min(1, q.used / Math.max(1, q.cap));
-  const color = q.used >= q.cap ? '#E11D48' : pct >= 0.8 ? '#F59E0B' : '#10B981';
+  const r = 48, c = 2 * Math.PI * r, pct = Math.min(1, q.used / Math.max(1, q.aviso));
+  const color = q.used > q.aviso ? '#E11D48' : pct >= 0.8 ? '#F59E0B' : '#10B981';
   $('#donut').innerHTML = `
     <circle cx="60" cy="60" r="${r}" fill="none" stroke="#EEF2F7" stroke-width="12"/>
     <circle cx="60" cy="60" r="${r}" fill="none" stroke="${color}" stroke-width="12" stroke-linecap="round"
       stroke-dasharray="${(c * pct).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 60 60)" style="transition:stroke-dasharray .5s"/>
-    <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="#0F172A">${q.used}<tspan font-size="14" fill="#94A3B8">/${q.cap}</tspan></text>
+    <text x="60" y="58" text-anchor="middle" font-size="24" font-weight="800" fill="#0F172A">${q.used}<tspan font-size="14" fill="#94A3B8">/${q.aviso}</tspan></text>
     <text x="60" y="78" text-anchor="middle" font-size="10.5" fill="#64748B" font-weight="600">EN 24 H</text>`;
 }
 function renderNextBox() {
@@ -2082,7 +2096,6 @@ $('#listaDia').addEventListener('click', e => {
   if (e.target.closest('#btnListaVaciar')) { if (!confirm('¿Vaciar la lista del día? (no borra nada del Excel)')) return; S.listaDia = { fecha: todayKey(), items: [] }; save(); renderListaDia(); return; }
   if (!e.target.closest('#btnListaLote')) return;
   const n = listaDia().items.length;
-  if (n < LOTE_SIZE && !confirm(`La lista tiene ${n} de ${LOTE_SIZE}. ¿Generar el lote igualmente?`)) return;
   const pend = S.lotes.filter(l => l.fecha === todayKey()).reduce((x, l) => x + lotePending(l).length, 0);
   if (pend && !confirm(`Ya tienes ${pend} contacto(s) pendientes en lotes de hoy. ¿Crear igualmente el lote?`)) return;
   crearLoteDesdeLista();
