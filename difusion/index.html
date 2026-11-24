@@ -374,6 +374,14 @@
         <div class="set-row"><span>Intervalo mín. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="120" data-cad="gapMinM"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Intervalo máx. <span class="hint">min</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="240" data-cad="gapMaxM"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Repartir en la jornada</span><label class="sw"><input type="checkbox" data-cad="repartir"><span></span></label></div>
+        <div class="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 mt-2">
+          <div class="flex items-center justify-between"><span class="text-[13px] font-semibold text-indigo-800">🎯 Modo personalizado</span><label class="sw"><input type="checkbox" data-cad="custom"><span></span></label></div>
+          <div class="text-[11px] text-slate-500 mt-0.5 mb-2">Pon tus 5 tiempos (minutos entre envíos). Se alternan al azar, sin repetir el anterior, con unos segundos de variación.</div>
+          <div id="tposBox" class="grid gap-1.5" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+            <input type="number" min="1" max="240" class="inp !px-1 text-center tabular-nums" data-tpo="0"><input type="number" min="1" max="240" class="inp !px-1 text-center tabular-nums" data-tpo="1"><input type="number" min="1" max="240" class="inp !px-1 text-center tabular-nums" data-tpo="2"><input type="number" min="1" max="240" class="inp !px-1 text-center tabular-nums" data-tpo="3"><input type="number" min="1" max="240" class="inp !px-1 text-center tabular-nums" data-tpo="4">
+          </div>
+          <div id="tposInfo" class="text-[11px] text-indigo-700 mt-1.5"></div>
+        </div>
         <details class="mt-1">
           <summary class="text-[12px] text-indigo-600 font-semibold py-1">Avanzado</summary>
           <div class="set-row"><span>Descanso cada <span class="hint">envíos</span></span><div class="flex gap-1"><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="50" data-cad="fatMin"><button data-stepper="+">+</button></div><div class="step"><button data-stepper="-">−</button><input type="number" min="1" max="50" data-cad="fatMax"><button data-stepper="+">+</button></div></div></div>
@@ -752,6 +760,22 @@ function typingMs(chars) { return Math.round(chars * rnd(+S.cad.typMin || 0, Mat
 function breakMs() { return Math.round(rnd(+S.cad.brkMin || 0, Math.max(+S.cad.brkMin || 0, +S.cad.brkMax || 0)) * 60000); }
 const fatigueEvery = () => rndInt(Math.max(1, +S.cad.fatMin || 6), Math.max(1, +S.cad.fatMax || 10));
 
+/* ---------- Modo personalizado: tus 5 tiempos ---------- */
+const TPOS_DEF = [8, 14, 21, 11, 26];
+function tiemposPropios() {
+  const t = (Array.isArray(S.cad.tiempos) ? S.cad.tiempos : TPOS_DEF).map(Number).filter(x => x >= 1);
+  return t.length ? t : TPOS_DEF.slice();
+}
+const customOn = () => !!S.cad.custom;
+/** Elige uno de tus tiempos al azar, distinto del anterior, con ±0–59 s de variación */
+let ultimoTpo = -1;
+function customGap() {
+  const t = tiemposPropios();
+  let i = Math.floor(Math.random() * t.length);
+  if (t.length > 1) for (let k = 0; k < 10 && (i === ultimoTpo || t[i] === t[ultimoTpo]); k++) i = Math.floor(Math.random() * t.length);
+  ultimoTpo = i;
+  return Math.max(60000, Math.round(t[i] * 60000 + rnd(-30000, 29999)));
+}
 /** Intervalo para "repartir en la jornada": log-normal alrededor del ideal, nunca parecido al anterior */
 function spreadGap(idealMs, prevGap) {
   const lo = Math.max(60, (+S.cad.gapMinM || 4) * 60) * 1000;
@@ -945,7 +969,8 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
   let t = nextAllowed(Math.max(from ?? now, now), times, cap, flags);
   const startT = t, firstDay = todayKey(t);
   const floorMs = Math.max(5, +S.cad.floor || 30) * 1000;
-  const repartir = S.cad.repartir !== false;
+  const repartir = S.cad.repartir !== false && !customOn();
+  ultimoTpo = -1;
   // Ajuste proporcional (solo sin "repartir"): acorta intervalos para cerrar a tiempo
   let factor = 1;
   if (!repartir && S.cad.mode === 'ajuste' && pend.length) {
@@ -957,7 +982,8 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
   pend.forEach(({ g }, i) => {
     const curEnd = dayAt(t, S.cad.end);
     let gap;
-    if (repartir) {
+    if (customOn()) gap = customGap();
+    else if (repartir) {
       // Reparte el cupo que queda en las horas que quedan de la jornada
       const restantes = pend.length - i;
       const slots = Math.max(1, Math.min(restantes, cap - countIn24(t, merged())));
@@ -967,13 +993,13 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
       gap = spreadGap(ideal, prevGap);
     } else gap = Math.max(floorMs, Math.round(g.plan.gap * (todayKey(t) === firstDay ? factor : 1)));
     prevGap = gap;
-    const brk = g.plan.brk ? Math.max(60000, Math.round(g.plan.brk * (repartir ? 1 : factor))) : 0;
+    const brk = customOn() ? 0 : g.plan.brk ? Math.max(60000, Math.round(g.plan.brk * (repartir ? 1 : factor))) : 0;
     const restStart = t;
     const ideal = t + brk + gap + g.plan.typ;
     t = nextAllowed(ideal, merged(), cap, flags);
     // Si el cupo empujó la hora, que no quede pegada al envío anterior (mínimo + variación)
     const prevT = planned.length ? planned[planned.length - 1] : (times.length ? times[times.length - 1] : 0);
-    const minSep = Math.max(60, (+S.cad.gapMinM || 7) * 60) * 1000 * (1 + Math.random() * 0.8);
+    const minSep = customOn() ? Math.max(60000, Math.min(...tiemposPropios()) * 60000 - 30000) : Math.max(60, (+S.cad.gapMinM || 7) * 60) * 1000 * (1 + Math.random() * 0.8);
     if (prevT && t - prevT < minSep) t = nextAllowed(prevT + minSep, merged(), cap, flags);
     // Que no quede pegado a una hora fijada a mano
     for (let k = 0; k < 10; k++) { const f = fijoTimes.find(f => Math.abs(t - f) < minSep); if (!f) break; t = nextAllowed(f + minSep, merged(), cap, flags); }
@@ -1501,6 +1527,18 @@ async function fireNext(mode) {
     afterSent(n.cod);
   } finally { R.firing = false; }
 }
+/** Envía ya a un contacto de la cola: lo pone primero y abre su chat (respeta cupo de 24 h y pausa) */
+function mandarAhora(cod) {
+  const l = getSendLote(), g = S.gestion[cod];
+  if (!l || !g || g.enviado || R.firing) return;
+  if (!lotePending(l).includes(cod)) { toast('Ese contacto no se puede enviar (bloqueado o fuera del lote).', 'warn'); return; }
+  if (!validPhone(S.clients[cod]?.telefono)) { toast('Ese contacto no tiene un número válido.', 'warn'); return; }
+  const primero = lotePending(l)[0];
+  if (primero !== cod) { const i = l.codigos.indexOf(cod), j = l.codigos.indexOf(primero); l.codigos.splice(i, 1); l.codigos.splice(j, 0, cod); }
+  delete g.fijo; g.sched = Date.now();
+  hideBlocked();
+  fireNext('click');
+}
 function afterSent(cod) {
   markSent(cod);
   beep();
@@ -1678,7 +1716,7 @@ function renderQueue() {
       <td class="py-2 pr-2 tabular-nums whitespace-nowrap text-slate-600">${esc(when.replace(/:\d\d$/, ''))}${g.eff?.brk && !g.enviado ? ' ☕' : ''}</td>
       <td class="py-2 pr-2 min-w-[220px]"><div class="clamp1 whitespace-pre-wrap cursor-pointer text-slate-600" data-expand title="${gen.bytes || 0} B · ${gen.chars || 0} caracteres · clic para ver">${esc(gen.text || '—')}</div></td>
       <td class="py-2 pr-2">${estadoBadge(g)}</td>
-      <td class="py-2 text-right whitespace-nowrap">${g.enviado ? '' : (BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="w-7 h-7 rounded-lg text-indigo-600 hover:bg-indigo-50" data-regen="${esc(cod)}" title="Otro texto">↻</button>`) + `<button class="w-7 h-7 rounded-lg text-rose-500 hover:bg-rose-50" data-quitar="${esc(cod)}" title="Quitar del lote">✕</button>`}</td>
+      <td class="py-2 text-right whitespace-nowrap">${g.enviado ? '' : (BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="w-7 h-7 rounded-lg text-indigo-600 hover:bg-indigo-50" data-regen="${esc(cod)}" title="Otro texto">↻</button>`) + (BLOCK_LABEL_SET.has(g.estadoEnvio) ? '' : `<button class="h-7 px-2 rounded-lg text-[11.5px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100" data-ahora="${esc(cod)}" title="Abrir el chat ya, sin esperar su hora">➤ Ahora</button>`) + `<button class="h-7 px-2 ml-1 rounded-lg text-[11.5px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100" data-quitar="${esc(cod)}" title="Ya lo contacté antes: quitar de la lista">🗑 Ya contactado</button>`}</td>
     </tr>`;
   }).join('');
 }
@@ -1965,7 +2003,14 @@ function syncInputs() {
     const k = el.dataset.cad, v = S.cad[k];
     if (el.type === 'checkbox') el.checked = !!v; else if (el.type === 'radio') el.checked = el.value === v; else el.value = v;
   });
-  renderTemplates(); renderBlocks(); renderVarChips();
+  renderTemplates(); renderBlocks(); renderVarChips(); renderTpos();
+}
+function renderTpos() {
+  const t = tiemposPropios();
+  $$('[data-tpo]').forEach(el => { el.value = t[+el.dataset.tpo] ?? ''; el.disabled = !customOn(); });
+  const box = document.getElementById('tposBox'); if (box) box.classList.toggle('opacity-50', !customOn());
+  const info = document.getElementById('tposInfo');
+  if (info) info.textContent = customOn() ? `Activo: ${t.join(', ')} min (≈ ${Math.round(t.reduce((a, b) => a + b, 0) / t.length)} min de promedio). Reemplaza intervalo mín./máx. y descansos.` : 'Apagado: se usa el intervalo mín./máx.';
 }
 function renderDest() {
   const app = isApp();
@@ -2105,7 +2150,15 @@ $$('[data-cad]').forEach(el => el.addEventListener('change', () => {
   else { if (!/^\d{2}:\d{2}$/.test(el.value)) { el.value = S.cad[k]; return; } S.cad[k] = el.value; }
   if (hm(S.cad.end) <= hm(S.cad.start)) { toast('La hora de fin debe ser posterior a la de inicio.', 'warn'); }
   clearTimeout(cadT);
-  cadT = setTimeout(() => { planLote({ regenTimes: TIME_KEYS.includes(k), from: null }); save(); renderAllRunner(); }, 200);
+  if (k === 'custom') renderTpos();
+  cadT = setTimeout(() => { planLote({ regenTimes: TIME_KEYS.includes(k) || k === 'custom', from: null }); save(); renderAllRunner(); }, 200);
+}));
+$$('[data-tpo]').forEach(el => el.addEventListener('change', () => {
+  const t = tiemposPropios().slice(), i = +el.dataset.tpo, v = Math.round(parseFloat(el.value));
+  if (!(v >= 1 && v <= 240)) { toast('Cada tiempo debe estar entre 1 y 240 minutos.', 'warn'); el.value = t[i]; return; }
+  while (t.length < 5) t.push(TPOS_DEF[t.length]);
+  t[i] = v; S.cad.tiempos = t;
+  planLote({ regenTimes: true, from: null }); save(); renderTpos(); renderAllRunner();
 }));
 $$('[data-pol]').forEach(el => el.addEventListener('change', () => {
   const k = el.dataset.pol;
@@ -2179,7 +2232,12 @@ $('#btnCompletar').addEventListener('click', () => {
 });
 $('#queue').addEventListener('click', e => {
   const q = e.target.closest('[data-quitar]');
-  if (q) { if (!confirm(`¿Quitar ${q.dataset.quitar} del lote? (no volverá a salir en lotes futuros)`)) return; despuesDeQuitar(quitarDelLote([q.dataset.quitar]), false); return; }
+  if (q) {
+    const c = S.clients[q.dataset.quitar];
+    if (!confirm(`¿Quitar a ${c?.razon || q.dataset.quitar} de la lista porque ya lo contactaste?\n(No volverá a salir en lotes futuros.)`)) return;
+    despuesDeQuitar(quitarDelLote([q.dataset.quitar], 'Ya contactado'), false); return;
+  }
+  const ah = e.target.closest('[data-ahora]'); if (ah) return mandarAhora(ah.dataset.ahora);
   const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
   const ex = e.target.closest('[data-expand]'); if (ex) ex.classList.toggle('open');
 });
