@@ -159,7 +159,7 @@
         <div class="flex items-center justify-center gap-2">
           <button id="btnStart" class="btn btn-primary !px-6 !py-2.5 !text-[14px]">▶ Comenzar</button>
           <button id="btnPause" class="hidden"></button>
-          <button id="btnNow" class="btn btn-ghost btn-icon" title="Abrir el siguiente ahora">⚡</button>
+          <button id="btnNow" class="btn btn-green !px-3" title="Abrir ya el chat del siguiente contacto">💬 Siguiente</button>
           <button class="btn btn-ghost btn-icon" data-recalc title="Recalcular horarios y textos">🔄</button>
         </div>
         <div class="mt-5">
@@ -886,11 +886,10 @@ function lastByPhone() {
   return m;
 }
 /** Motivo por el que un contacto no debe recibir mensaje ahora ('' = puede) */
-function blockedReason(cod, lbp = lastByPhone()) {
+/** Ya no se omite a nadie por frecuencia ni por consentimiento: tú llevas el control.
+ *  Solo se salta a quien TÚ marcaste como 🚫 No contactar. */
+function blockedReason(cod) {
   if (isOptOut(cod)) return 'optout';
-  if (S.policy.consentOnly && S.clients[cod]?.consent !== true) return 'consent';
-  const days = +S.policy.freqDays || 0, last = lbp.get(phoneOf(cod));
-  if (days && last && last.cod !== cod && Date.now() - last.t < days * 86400000) return 'freq';
   return '';
 }
 const BLOCK_LABEL = { optout: 'No contactar', consent: 'Sin consentimiento', freq: 'Omitido (frecuencia)' };
@@ -1020,12 +1019,35 @@ function planLote({ regenTexts = false, regenTimes = false, from = null } = {}) 
     g.estadoEnvio = todayKey(t) > todayKey(now) ? 'Reprogramado' : 'Pendiente';
     if (todayKey(t) === firstDay) { todayCount++; todayEnd = t; } else overflow++;
   });
+  // Nada pasa a otra fecha: lo que quedó para mañana se reparte en lo que queda de hoy
+  const gs = [...fijos, ...pend].map(x => x.g).filter(g => g.sched);
+  const hoyK = todayKey(now), fin = dayAt(now, S.cad.end);
+  const fuera = gs.filter(g => todayKey(g.sched) !== hoyK || g.sched > Math.max(fin, now)).sort((a, b) => a.sched - b.sched);
+  if (fuera.length) {
+    // No caben con los intervalos actuales: se reparten TODOS (menos los fijados a mano) de forma pareja en lo que queda de hoy
+    const libres = gs.filter(g => !g.fijo).sort((x, y) => x.sched - y.sched);
+    const base = now + rnd(1, 3) * 60000;
+    let limite = fin > base + libres.length * 60000 ? fin : Math.min(dayAt(now, '23:58'), base + libres.length * 2 * 60000);
+    // Almuerzo: ese tramo no cuenta
+    const la = S.cad.lunch ? dayAt(now, S.cad.lunchStart || '13:00') : 0, lb = S.cad.lunch ? dayAt(now, S.cad.lunchEnd || '14:00') : 0;
+    const salto = la && lb > base && la < limite ? Math.min(lb, limite) - Math.max(la, base) : 0;
+    const step = Math.max(60000, (limite - base - salto) / libres.length);
+    libres.forEach((g, i) => {
+      let x = base + step * i + Math.random() * step * 0.5;
+      if (salto && x >= Math.max(la, base)) x += salto;
+      g.sched = Math.round(x); g.estadoEnvio = 'Pendiente';
+      if (g.eff) g.eff.restUntil = 0;
+    });
+  }
   ordenarPorHora(l);
-  for (const tf of fijoTimes) { if (todayKey(tf) === firstDay) { todayCount++; if (!todayEnd || tf > todayEnd) todayEnd = tf; } else overflow++; }
-  if (fijoTimes.length) t = Math.max(t, ...fijoTimes);
-  const hours = todayEnd ? (todayEnd - startT) / 3600000 : 0;
+  const finales = gs.map(g => g.sched);
+  const deHoy = finales.filter(x => todayKey(x) === hoyK);
+  todayCount = deHoy.length; overflow = finales.length - deHoy.length;
+  todayEnd = deHoy.length ? Math.max(...deHoy) : null;
+  if (finales.length) t = Math.max(...finales);
+  const hours = todayEnd && finales.length ? (todayEnd - Math.min(...finales)) / 3600000 : 0;
   const blocked = l.codigos.filter(c => S.gestion[c] && !S.gestion[c].enviado && blockedReason(c, lbp)).length;
-  S.run.info = { start: startT, finish: (pend.length || fijos.length) ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay, at: now, capHit: flags.quota, cap, pausa: flags.pausa, blocked };
+  S.run.info = { start: finales.length ? Math.min(...finales) : startT, finish: (pend.length || fijos.length) ? t : null, todayEnd, todayCount, overflow, factor, rate: hours > 0 ? todayCount / hours : 0, firstDay: hoyK, at: now, capHit: flags.quota, cap, pausa: flags.pausa, blocked };
   save();
   return S.run.info;
 }
@@ -1492,9 +1514,10 @@ function cadStatus(now = Date.now()) {
   const q = quotaInfo(now);
   if (q.used >= q.cap) return { k: 'cupo', n, until: Math.max(q.release || now, n.g.sched || now) };
   const w = windowAt(now);
-  if (!w.inside) return { k: 'fuera', n, until: w.nextStart };
   const sched = n.g.sched || now;
-  if (sched > dayAt(now, S.cad.end)) return { k: 'fuera', n, until: sched };
+  const hoy = todayKey(sched) === todayKey(now);
+  if (!w.inside && !hoy) return { k: 'fuera', n, until: w.nextStart };
+  if (sched > dayAt(now, S.cad.end) && !hoy) return { k: 'fuera', n, until: sched };
   if (n.g.eff?.restUntil && now < n.g.eff.restUntil) return { k: 'descanso', n, until: sched, restUntil: n.g.eff.restUntil };
   if (now >= sched - (n.g.eff?.typ || 0)) return { k: 'escribiendo', n, until: sched };
   return { k: 'activo', n, until: sched };
@@ -1711,7 +1734,10 @@ function renderNextBox() {
     <div class="wa-bg rounded-xl p-3 mt-3">
       <div class="wa-bubble ml-auto max-w-[96%] px-3 py-2 text-[12.5px] leading-relaxed whitespace-pre-wrap break-words shadow-sm max-h-60 overflow-y-auto scroll-thin">${esc(gen.text || '')}</div>
     </div>
-    <div class="text-[11px] text-slate-400 mt-1.5 text-right">${gen.bytes || 0} B · ${gen.chars || 0} caracteres</div>`;
+    <div class="flex items-center gap-2 mt-3">
+      <button class="btn btn-green flex-1 !py-2.5 !text-[14px]" data-hablar>💬 Hablar al siguiente</button>
+      <span class="text-[11px] text-slate-400 whitespace-nowrap">${gen.bytes || 0} B · ${gen.chars || 0} car.</span>
+    </div>`;
 }
 const estadoBadge = g => g.enviado ? `<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white">✓ Enviado ${fmtTime(g.fechaEnvio)}</span>`
   : g.estadoEnvio === 'No contactar' ? '<span class="text-[10.5px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">🚫 No contactar</span>'
@@ -2215,7 +2241,6 @@ $('#btnStart').addEventListener('click', () => { if (R.running) { stopRunner(); 
 $('#btnPause').addEventListener('click', () => { stopRunner(); toast('Cadencia en pausa'); });
 $('#btnNow').addEventListener('click', () => {
   if (!nextPending()) { toast('No hay contactos pendientes en este lote.', 'warn'); return; }
-  if (!windowAt().inside && !confirm('Estás fuera del horario laboral. ¿Abrir el siguiente chat de todos modos?')) return;
   fireNext('click');
 });
 $('#blockedOpen').addEventListener('click', resolveBlocked);
@@ -2359,6 +2384,7 @@ $('#timeline').addEventListener('click', e => {
   if (row) { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); row.classList.remove('row-flash'); void row.offsetWidth; row.classList.add('row-flash'); }
 });
 $('#nextBox').addEventListener('click', e => {
+  if (e.target.closest('[data-hablar]')) { if (!nextPending()) { toast('No hay contactos pendientes.', 'warn'); return; } fireNext('click'); return; }
   const rg = e.target.closest('[data-regen]'); if (rg) return regenOne(rg.dataset.regen);
   const ex = e.target.closest('[data-expand]'); if (ex) ex.classList.toggle('open');
 });
