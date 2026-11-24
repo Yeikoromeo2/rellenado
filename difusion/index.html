@@ -406,7 +406,6 @@
         <div class="card-h"><span class="ic">🛡️</span>Protección</div>
         <div class="set-row"><span>1 mensaje por número cada <span class="hint">días</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="90" data-pol="freqDays"><button data-stepper="+">+</button></div></div>
         <div class="set-row"><span>Pausar si bajas ≥ <span class="hint">%</span></span><div class="step"><button data-stepper="-">−</button><input type="number" min="0" max="50" step="0.5" data-pol="bajaMax"><button data-stepper="+">+</button></div></div>
-        <div class="set-row"><span>Incluir "respondan BAJA"</span><label class="sw"><input type="checkbox" data-pol="salida"><span></span></label></div>
         <div class="set-row"><span>Solo con consentimiento <span id="consentInfo" class="hint"></span></span><label class="sw"><input type="checkbox" data-pol="consentOnly"><span></span></label></div>
       </div>
     </div>
@@ -485,10 +484,9 @@ const DEFAULT_BLOCKS = {
   datos: { label: 'Solicitud de datos (siempre)', prob: 100, items: 'Para {actualizar|completar|mantener al día} {nuestra base|sus datos|su ficha}, ¿me {podrían|pueden} {indicar|compartir} el nombre de la persona {encargada de compras|que ve las compras}, su correo y un teléfono directo?\n{Además|Por otro lado}, ¿me {ayudan|podrían ayudar} con el nombre {del encargado|de la persona encargada} de compras, un correo de contacto y un número directo para {coordinar mejor|atenderlos mejor}?\n¿Con quién {debo coordinar|coordino} las compras? {Les agradecería|Agradecería} su nombre, correo y un teléfono directo.' },
   pregunta: { label: 'Pregunta de cierre abierta', prob: 40, items: '¿{Les interesa|Les gustaría} que les {envíe|comparta} {la cotización|los precios|el detalle}?\n¿Qué {productos|líneas} {están necesitando|necesitan} {este mes|para su próximo pedido}?\n¿{Cuándo|En qué momento} les {acomoda|viene bien} que lo {revisemos|conversemos}?' },
 
-  despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Buen día!|¡Que tengas buen día!|¡Éxitos!}' },
-  salida: { label: 'Opción de salida (se agrega al final)', prob: 100, items: 'Si prefieren no recibir más mensajes, respondan BAJA.\nSi no desean más mensajes, solo respondan BAJA.' },
+  despedida: { label: 'Despedida corta', prob: 60, items: '{Quedo atento|Quedo a tu disposición|Quedo pendiente}.\n{Saludos|Un saludo|Gracias}{ 🙌|}\n{¡Éxitos!|Gracias de antemano.|¡Muchas gracias!}' },
 };
-const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, max24h: 30, warmup: false, warmupStart: '', consentOnly: false, salida: true, bajaMax: 3 };
+const DEFAULT_POLICY = { freqDays: 7, dailyCap: 40, max24h: 30, warmup: false, warmupStart: '', consentOnly: false, salida: false, bajaMax: 3 };
 const DEFAULT_FALLBACKS = 'nombre=\nempresa=su empresa\nciudad=su ciudad';
 const CAD_V2 = { gapMinM: 7, gapMaxM: 45, repartir: true, lunch: true, lunchStart: '13:00', lunchEnd: '14:00', fatMin: 4, fatMax: 7, brkMin: 10, brkMax: 25, v: 2 };
 const DEFAULT_CAD = { start: '09:00', end: '18:00', sabado: false, gapMin: 45, gapMax: 180, typMin: 40, typMax: 90, mode: 'desborde', floor: 30, ...CAD_V2 };
@@ -529,7 +527,10 @@ function migrate(d) {
   if (!d.blocks) s.blocks = base.blocks;
   // Migración v3: sin códigos internos, saludo a la razón social, presentación y solicitud de datos
   s.templates.forEach(t => { if (t.text === OLD_TPL3) t.text = DEFAULT_TEMPLATES[2]; const i = OLD_TPLS.indexOf(t.text); if (i >= 0) t.text = DEFAULT_TEMPLATES[i]; });
-  if (s.blocks.salida && s.blocks.salida.items === OLD_SALIDA) s.blocks.salida.items = DEFAULT_BLOCKS.salida.items;
+  // Sin línea de "respondan BAJA" y sin "buen día" en la despedida (el saludo ya lo usa al inicio)
+  delete s.blocks.salida; s.policy.salida = false;
+  if (s.blocks.despedida && /buen\s*d[ií]a/i.test(s.blocks.despedida.items || '')) s.blocks.despedida.items = DEFAULT_BLOCKS.despedida.items;
+  for (const g of Object.values(s.gestion || {})) if (g && !g.enviado && g.gen && /\bBAJA\b|buen\s*d[ií]a!?\s*$/i.test(g.gen.text || '')) { g.gen = null; g.plan = null; }
   if (s.blocks.pregunta && s.blocks.pregunta.items === OLD_PREG) s.blocks.pregunta.items = DEFAULT_BLOCKS.pregunta.items;
   if (s.blocks.saludo && s.blocks.saludo.items === OLD_SALUDO) s.blocks.saludo = JSON.parse(JSON.stringify(DEFAULT_BLOCKS.saludo));
   if (s.blocks.pregunta && +s.blocks.pregunta.prob === 85 && !s.blocks.presentacion) s.blocks.pregunta.prob = 40;
@@ -733,7 +734,7 @@ function composeMessage(c, g, avoid) {
     const datos = block('datos');
     const pre = block('pregunta');
     const des = block('despedida');
-    const out = S.policy?.salida !== false ? block('salida') : '';
+    const out = '';
     const sep = Math.random() < 0.5 ? '\n\n' : '\n';
     keys.push(sep.length);
     const text = tidy([sal, body.text, datos, pre, des].filter(x => x && x.trim()).join(sep) + (out ? '\n\n' + out : ''));
