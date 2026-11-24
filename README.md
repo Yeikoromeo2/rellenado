@@ -59,6 +59,14 @@ Cada persona que vaya a usar el panel debe cargar el manifiesto. Si tu organizac
 5. **Difusión → ✅ Generar lote** desde la Lista del día. Todo lo demás sigue igual.
 - *Tomar y registrar directo* hace todo en un paso, sin validar. *Reiniciar ronda* empieza de cero, sin tocar el Excel.
 
+**📱 Celulares desde NUEVOS REGISTROS 2026 (v1.7)**
+- Solo se rellena en **BD-BBPE** (columna `Customer ID`) y **Seguimiento semanal** (`ID DE TRAX` o `ID TRAX`).
+- La hoja **NUEVOS REGISTROS 2026** solo se **lee**: su columna `CELULARES` se cruza por código, como un BUSCARV. Se elige en la tarjeta de hojas → *📱 Celulares desde*.
+- Un celular es real si empieza en `9` o en `51`. Solo se quita el `51` y deben quedar **exactamente 9 dígitos**; si no, se descarta. Si la celda trae varios números, se usa el primero válido.
+- Con *Solo con celular real* marcado, la lista propuesta trae solo esos contactos.
+- **⬇ Excel** descarga el reporte con 3 columnas: `Código de Cliente`, `Razón Social`, `Celular`.
+- En la difusión: **🔎 Validar lista del complemento → 📄 Cargar Excel del complemento**. Agrega a la base los que no tenga y completa los celulares que falten.
+
 **Validar antes de rellenar (Acción 1)**
 - **🔍 Validar** revisa los códigos en las hojas marcadas **sin escribir nada** y muestra un reporte: *"Se encontraron 15 de 17: 8 ya registrados, 7 nuevos y 2 no existen"*.
 - Por cada código indica hoja, fila, fecha y responsable que ya tiene. Se puede filtrar, copiar los ya registrados o los nuevos, y descargar el reporte en Excel.

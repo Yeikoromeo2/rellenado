@@ -19,7 +19,8 @@ const DEFAULTS = {
 // Hojas que se proponen por defecto: BD-BBPE y cualquier hoja de "seguimiento"
 const DEFAULT_SHEET_PATTERNS = [/^bdbbpe$/, /seguimiento/];
 // Nombres alternativos que también se aceptan como columna identificadora
-const ID_ALIASES = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente'];
+// BD-BBPE usa "Customer ID"; Seguimiento semanal y NUEVOS REGISTROS 2026 usan "ID DE TRAX" / "ID TRAX"
+const ID_ALIASES = ['customerid', 'iddetrax', 'idtrax', 'codigodecliente', 'codigocliente', 'codcliente'];
 const HEADER_SCAN_ROWS = 10;
 const LS_KEY = 'rellenado_crm_v1';
 // Acción 2: ÚNICAS columnas que se rellenan desde el archivo CRM
@@ -28,7 +29,10 @@ const A2_COLUMNS = ['ESTADO CONTACTO', 'PRÓXIMA ACCIÓN', 'OBSERVACIÓN', 'NOMB
 const PROTECTED_KEYS = ['customerid', 'codigodecliente', 'codigocliente', 'codcliente', 'razonsocial', 'numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular'];
 // Solo en FILAS NUEVAS (códigos agregados) se permite escribir además estas columnas
 const NEW_ROW_RAZON = ['razonsocial'];
-const NEW_ROW_NUMERO = ['numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular'];
+const NEW_ROW_NUMERO = ['numerodecontacto', 'numerocontacto', 'numero', 'nrodecontacto', 'celular', 'celulares'];
+// Hoja de consulta de celulares (solo se LEE, nunca se escribe) y sus columnas
+const FUENTE_PATTERNS = [/nuevosregistros/, /registros2026/];
+const CEL_KEYS = ['celulares', 'celular', 'numerocelular', 'nrocelular', 'movil', 'moviles'];
 const DEFAULT_EXCLUDED = [];
 
 /* ---------------- Utilidades ---------------- */
@@ -87,7 +91,7 @@ function colLetter(c) { let s = ''; c++; while (c > 0) { const m = (c - 1) % 26;
 
 /* ---------------- Estado persistente (solo preferencias) ---------------- */
 let P = (() => {
-  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a0', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true, cuotas: {}, soloConNumero: true, ronda: null };
+  const base = { ...DEFAULTS, resp: '', codes: '', tab: 'a0', excluded: DEFAULT_EXCLUDED.slice(), sheets: [], addRazon: true, cuotas: {}, soloConNumero: true, ronda: null, fuente: '' };
   try { const p = { ...base, ...JSON.parse(localStorage.getItem(LS_KEY) || '{}') }; if (!Array.isArray(p.sheets)) p.sheets = []; if (!p.cuotas || typeof p.cuotas !== 'object') p.cuotas = {}; return p; } catch (e) { return base; }
 })();
 function persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(P)); } catch (e) {} }
@@ -102,7 +106,8 @@ const APP = {
   missing: { 1: null, 2: null }, // códigos no encontrados pendientes de agregar, por acción
   busy: false,
 };
-const selectedSheets = () => P.sheets.filter((s) => !APP.sheetNames.length || APP.sheetNames.includes(s));
+// Hojas donde se rellena: nunca incluye la hoja de consulta de celulares
+const selectedSheets = () => P.sheets.filter((s) => (!APP.sheetNames.length || APP.sheetNames.includes(s)) && s !== P.fuente);
 
 /* =============================================================
    DETECCIÓN DEL ENCABEZADO
@@ -526,6 +531,47 @@ function renderRespChips0() {
 }
 function mezclar(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
+/** Celular real: empieza en 9 o en 51 (se quita solo el 51) y debe quedar con 9 dígitos exactos; si no, se descarta.
+ *  Acepta "+51 987 654 321", "987-654-321", varias en una celda ("987654321 / 912…"), y descarta números de relleno. */
+function celularReal(v) {
+  if (isEmpty(v)) return '';
+  const txt = typeof v === 'number' ? String(Math.round(v)) : String(v);
+  // Una celda puede traer varios números: "987654321 / 51912345678"
+  for (const parte of txt.split(/[\/,;|\n]|\s+y\s+|\s+o\s+/i)) {
+    let d = parte.replace(/\D/g, '');
+    if (d.length === 11 && d.startsWith('51')) d = d.slice(2);      // solo se quita el 51
+    if (!/^9\d{8}$/.test(d)) continue;                              // si o si 9 dígitos y empieza en 9
+    if (/^(\d)\1{8}$/.test(d)) continue;                            // 999999999 no es real
+    return d;
+  }
+  return '';
+}
+/** Lee la hoja de consulta (NUEVOS REGISTROS 2026): código → { cel, razon }. null si no hay hoja elegida. */
+async function leerCelulares() {
+  if (!P.fuente) return null;
+  try {
+    const idx = await T().buildIndex([...CEL_KEYS, ...NEW_ROW_RAZON], P.fuente);
+    const kCel = findKey(idx, CEL_KEYS);
+    if (!kCel) throw new Error(`La hoja "${P.fuente}" no tiene la columna CELULARES.`);
+    const kRaz = findKey(idx, NEW_ROW_RAZON);
+    const mapa = new Map();
+    for (const [k, rows] of idx.rows) {
+      let cel = '';
+      for (const r of rows) { cel = celularReal(existingAt(idx, kCel, r)); if (cel) break; }
+      mapa.set(k, { cel, razon: kRaz ? String(existingAt(idx, kRaz, rows[0]) ?? '').trim() : '' });
+    }
+    return mapa;
+  } catch (e) { throw new Error(`No pude leer los celulares: ${e.message}`); }
+}
+/** Celular y razón social de un código: primero la hoja de consulta, si no la propia hoja */
+function datosContacto(idx, k, celMap) {
+  const row = idx.rows.get(k)[0];
+  const kR = findKey(idx, NEW_ROW_RAZON), kN = findKey(idx, NEW_ROW_NUMERO);
+  const propia = { razon: kR ? String(existingAt(idx, kR, row) ?? '').trim() : '', cel: kN ? celularReal(existingAt(idx, kN, row)) : '' };
+  const f = celMap ? celMap.get(k) : null;
+  return { razon: propia.razon || (f ? f.razon : ''), cel: celMap ? (f ? f.cel : '') : propia.cel };
+}
+
 async function runAction0() {
   const date = $('#date0').value;
   if (!date) { setTab('ar'); return toast('Elige la fecha en ② Registrar.', 'warn'); }
@@ -549,21 +595,20 @@ async function runAction0() {
     // Un código está LIBRE si en ninguna hoja marcada tiene fecha ni responsable
     const libreEn = (idx, k) => idx.rows.get(k).every((row) => isEmpty(existingAt(idx, kDate, row)) && isEmpty(existingAt(idx, kResp, row)));
     const libreGlobal = (k) => idxs.every((idx) => !idx.rows.has(k) || libreEn(idx, k));
-    const dato = (idx, keys, row) => { const k = findKey(idx, keys); return k ? existingAt(idx, k, row) : ''; };
+    const celMap = await leerCelulares();
     const tomados = new Set(), elegidos = [], faltantes = [];
     for (const idx of idxs) {
       const cuota = cuotaDe(idx.sheet);
       if (!cuota) continue;
-      const kNum = findKey(idx, NEW_ROW_NUMERO);
       const candidatos = mezclar([...idx.rows.keys()].filter((k) => !tomados.has(k) && libreGlobal(k) &&
-        (!soloNum || !kNum || !isEmpty(existingAt(idx, kNum, idx.rows.get(k)[0])))));
+        (!soloNum || datosContacto(idx, k, celMap).cel)));
       const lote = candidatos.slice(0, cuota);
       if (lote.length < cuota) faltantes.push(`${idx.sheet}: solo ${lote.length} de ${cuota} libres`);
       for (const k of lote) {
         tomados.add(k);
         const row = idx.rows.get(k)[0];
-        const idRaw = idx.raw.get(k) ?? k;
-        elegidos.push({ key: k, hoja: idx.sheet, fila: row + 1, razon: String(dato(idx, NEW_ROW_RAZON, row) ?? '').trim(), numero: String(dato(idx, NEW_ROW_NUMERO, row) ?? '').trim(), codigo: idRaw });
+        const idRaw = idx.raw.get(k) ?? k, dc = datosContacto(idx, k, celMap);
+        elegidos.push({ key: k, hoja: idx.sheet, fila: row + 1, razon: dc.razon, numero: dc.cel, codigo: idRaw });
       }
     }
     if (!elegidos.length) throw new Error('No hay contactos libres que cumplan las condiciones.' + (faltantes.length ? ' ' + faltantes.join(' · ') : ''));
@@ -633,21 +678,21 @@ async function proponer() {
     const prog = $('#prog0');
     setProgress(prog, 0.1, 'Buscando libres…');
     const { idxs, errores, libreGlobal } = await leerLibres();
+    const celMap = await leerCelulares();
     const soloNum = $('#soloConNumero').checked;
     const usados = new Set([...R.propuestos.map((x) => x.key), ...R.registrados.map((x) => x.key)]);
     const elegidos = [], avisos = [...errores];
     for (const idx of idxs) {
       const n = falt[idx.sheet] || 0; if (!n) continue;
-      const kNum = findKey(idx, NEW_ROW_NUMERO);
-      const cand = mezclar([...idx.rows.keys()].filter((k) => !usados.has(k) && libreGlobal(k) &&
-        (!soloNum || !kNum || !isEmpty(existingAt(idx, kNum, idx.rows.get(k)[0])))));
+      const libres = [...idx.rows.keys()].filter((k) => !usados.has(k) && libreGlobal(k));
+      const cand = mezclar(libres.filter((k) => !soloNum || datosContacto(idx, k, celMap).cel));
+      if (soloNum && libres.length > cand.length) avisos.push(`${idx.sheet}: ${libres.length - cand.length} libres sin celular real (se omiten)`);
       const lote = cand.slice(0, n);
       if (lote.length < n) avisos.push(`${idx.sheet}: solo ${lote.length} de ${n} libres disponibles`);
       for (const k of lote) {
         usados.add(k);
-        const row = idx.rows.get(k)[0], kR = findKey(idx, NEW_ROW_RAZON), kN = findKey(idx, NEW_ROW_NUMERO);
-        elegidos.push({ key: k, codigo: idx.raw.get(k) ?? k, hoja: idx.sheet, fila: row + 1,
-          razon: kR ? String(existingAt(idx, kR, row) ?? '').trim() : '', numero: kN ? String(existingAt(idx, kN, row) ?? '').trim() : '' });
+        const row = idx.rows.get(k)[0], dc = datosContacto(idx, k, celMap);
+        elegidos.push({ key: k, codigo: idx.raw.get(k) ?? k, hoja: idx.sheet, fila: row + 1, razon: dc.razon, numero: dc.cel });
       }
     }
     setProgress(prog, 1, 'Lista lista (no se escribió nada)');
@@ -712,14 +757,14 @@ function renderTomados(avisos = []) {
     <div class="grid grid-cols-2 gap-1.5">
       <button class="btn btn-primary !py-2 !text-[12px] col-span-2" data-copy-tomados="lista">📋 Copiar lista para difusión</button>
       <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-copy-tomados="codigos">Solo códigos</button>
-      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-export-tomados>⬇ Excel</button>
+      <button class="btn btn-ghost !py-1.5 !text-[11.5px]" data-export-tomados>⬇ Excel (Código · Razón · Celular)</button>
     </div>
     <div class="max-h-72 overflow-y-auto scroll-thin border border-slate-100 rounded-lg">
       <table class="w-full text-[11.5px]"><tbody>
       ${L.map((e, i) => `<tr class="border-b border-slate-100"><td class="py-1 px-2 text-slate-400 tabular-nums">${i + 1}</td>
         <td class="py-1 px-1 font-mono font-semibold">${esc(e.codigo)}</td>
-        <td class="py-1 px-1 truncate max-w-[140px]">${esc(e.razon)}</td>
-        <td class="py-1 px-2 text-right text-slate-500 text-[10.5px]">${esc(e.hoja)}</td></tr>`).join('')}
+        <td class="py-1 px-1 truncate max-w-[120px]" title="${esc(e.hoja)}">${esc(e.razon)}</td>
+        <td class="py-1 px-2 text-right font-mono text-[10.5px] ${e.numero ? 'text-emerald-700' : 'text-rose-500'}">${esc(e.numero || 'sin celular')}</td></tr>`).join('')}
       </tbody></table>
     </div>
     <div class="text-[10.5px] text-slate-500">${APP.tomadosModo === 'propuesta' ? 'Pega la lista en la difusión → 🔎 Validar. Luego, en la pestaña ② Registrar, pega los que sí están.' : 'En la difusión: Envío → 🔎 Validar lista del complemento → pegar.'}</div>
@@ -729,8 +774,9 @@ function renderTomados(avisos = []) {
 const listaTomados = (soloCodigos) => (APP.tomados || []).map((e) => soloCodigos ? e.codigo : [e.codigo, e.razon, e.numero].join('\t')).join('\n');
 function exportTomados() {
   if (typeof XLSX === 'undefined') return toast('No cargó la librería de Excel.', 'error');
-  const ws = XLSX.utils.json_to_sheet((APP.tomados || []).map((e) => ({ 'Código de Cliente': e.codigo, 'Razón Social': e.razon, 'Número de Contacto': e.numero, Hoja: e.hoja, Fila: e.fila })));
-  ws['!cols'] = [16, 36, 16, 22, 7].map((w) => ({ wch: w }));
+  // Solo 3 columnas: es lo que carga la difusión
+  const ws = XLSX.utils.json_to_sheet((APP.tomados || []).map((e) => ({ 'Código de Cliente': String(e.codigo), 'Razón Social': e.razon, 'Celular': e.numero })), { header: ['Código de Cliente', 'Razón Social', 'Celular'] });
+  ws['!cols'] = [16, 40, 14].map((w) => ({ wch: w }));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Lote');
   XLSX.writeFile(wb, `Lote_libres_${todayISO()}.xlsx`);
 }
@@ -1031,12 +1077,21 @@ async function loadSheetOptions() {
     if (!sel.length) sel = [names[0]];
     P.sheets = sel; persist();
   } else if (!P.sheets.length) P.sheets = [P.sheet || DEFAULTS.sheet];
-  renderSheetPicker();
+  // Hoja de consulta de celulares: NUEVOS REGISTROS 2026 si existe
+  if (names.length && (!P.fuente || !names.includes(P.fuente)) && !P.fuenteTouched) P.fuente = names.find((n) => FUENTE_PATTERNS.some((re) => re.test(normKey(n)))) || '';
+  P.sheets = P.sheets.filter((x) => x !== P.fuente); persist();
+  renderSheetPicker(); renderFuente();
   renderCuotas(); renderRonda();
   renderMode();
 }
+function renderFuente() {
+  const sel = document.getElementById('cfgFuente'); if (!sel) return;
+  const names = APP.sheetNames;
+  sel.innerHTML = '<option value="">(usar el número de cada hoja)</option>' + names.map((n) => `<option ${n === P.fuente ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  document.getElementById('lblSoloNum').textContent = P.fuente ? `Solo con celular real (de ${P.fuente})` : 'Solo con celular real';
+}
 function renderSheetPicker() {
-  const names = APP.sheetNames.length ? APP.sheetNames : P.sheets;
+  const names = (APP.sheetNames.length ? APP.sheetNames : P.sheets).filter((n) => n !== P.fuente);
   // Chips: marcadas en verde (se usan), las demás en gris. Un clic marca o desmarca.
   $('#cfgSheets').innerHTML = names.map((n) => { const on = P.sheets.includes(n);
     return `<label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[12px] font-semibold cursor-pointer select-none ${on ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}">
@@ -1088,6 +1143,7 @@ function bindEvents() {
   $$('.tab').forEach((b) => b.addEventListener('click', () => setTab(b.dataset.tab)));
   $('#btnSettings').addEventListener('click', () => $('#settings').classList.toggle('hidden'));
   $('#btnReloadSheets').addEventListener('click', async () => { await loadSheetOptions(); refreshColumnMatch(); toast('Hojas actualizadas'); });
+  $('#cfgFuente').addEventListener('change', (e) => { P.fuente = e.target.value; P.fuenteTouched = true; P.sheets = P.sheets.filter((x) => x !== P.fuente); persist(); renderSheetPicker(); renderFuente(); renderCuotas(); renderRonda(); renderMode(); });
   $('#btnReloadSheets2').addEventListener('click', async () => { await loadSheetOptions(); refreshColumnMatch(); toast('Hojas actualizadas'); });
   $('#cfgSheets').addEventListener('change', (e) => {
     const cb = e.target.closest('[data-sheet]'); if (!cb) return;
